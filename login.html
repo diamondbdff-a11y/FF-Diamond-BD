@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Login | FF-Diamond-BD</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1220;--card:#131e31;--line:#263751;--text:#f4f7fb;--muted:#a9b7cc;--accent:#28d7a0;--accent2:#13a87a;--danger:#ff8b8b}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at top,#1c3450 0,#0b1220 48%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text)}
+    .card{width:min(100%,420px);padding:28px 22px;border:1px solid var(--line);border-radius:22px;background:rgba(19,30,49,.96);box-shadow:0 18px 60px #0007}
+    .logo{width:58px;height:58px;display:grid;place-items:center;border-radius:17px;background:linear-gradient(135deg,var(--accent),#b8ffe8);color:#082016;font-weight:900;font-size:19px;margin:0 auto 14px}
+    h1{text-align:center;font-size:25px;margin:0 0 6px} .sub{text-align:center;color:var(--muted);font-size:14px;margin:0 0 24px}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:5px;background:#0b1424;border-radius:12px;margin-bottom:20px}
+    .tab{border:0;border-radius:9px;padding:11px;background:transparent;color:var(--muted);font-weight:700;cursor:pointer}.tab.active{background:var(--accent);color:#062318}
+    label{display:block;font-size:13px;color:#d8e2f0;margin:13px 0 7px} input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:11px;background:#0b1424;color:white;font-size:15px;outline:none}input:focus{border-color:var(--accent)}
+    .submit{width:100%;margin-top:19px;padding:14px;border:0;border-radius:11px;background:var(--accent);color:#062318;font-weight:800;font-size:15px;cursor:pointer}.submit:disabled{opacity:.6;cursor:wait}
+    .msg{display:none;margin-top:15px;padding:12px;border-radius:10px;font-size:13px;line-height:1.5;background:#0b1424;border:1px solid var(--line);overflow-wrap:anywhere}.msg.show{display:block}.msg.error{color:var(--danger)}.msg.ok{color:var(--accent)}
+    .foot{text-align:center;color:var(--muted);font-size:12px;margin:20px 0 0;line-height:1.6}.back{display:block;text-align:center;color:var(--accent);text-decoration:none;font-size:14px;margin-top:18px}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">FF</div>
+    <h1>FF-Diamond-BD</h1>
+    <p class="sub">আপনার অ্যাকাউন্টে লগইন করুন</p>
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="loginTab" type="button">লগইন</button>
+      <button class="tab" id="signupTab" type="button">নতুন অ্যাকাউন্ট</button>
+    </div>
+    <form id="authForm">
+      <label for="email">ইমেইল</label>
+      <input id="email" type="email" autocomplete="email" placeholder="আপনার ইমেইল লিখুন" required>
+      <label for="password">পাসওয়ার্ড</label>
+      <input id="password" type="password" autocomplete="current-password" minlength="6" placeholder="কমপক্ষে ৬ অক্ষর" required>
+      <button class="submit" id="submitBtn" type="submit">লগইন করুন</button>
+    </form>
+    <div class="msg" id="message" role="status" aria-live="polite"></div>
+    <a class="back" href="index.html">← ওয়েবসাইটে ফিরে যান</a>
+    <p class="foot">নিরাপদ লগইনের জন্য Supabase Auth সংযোগ প্রয়োজন।<br>এই ফাইল একা আপলোড করলেই লগইন সক্রিয় হবে না।</p>
+  </main>
+  <script type="module">
+    /*
+      SETUP REQUIRED:
+      Replace these two placeholders with credentials from the correct
+      FF-Diamond-BD project's Supabase Settings > API.
+      Use only the Project URL and publishable/anon key.
+      NEVER put a service_role or secret key in this public HTML file.
+    */
+    const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
+    const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY_HERE";
+
+    const form = document.getElementById('authForm');
+    const loginTab = document.getElementById('loginTab');
+    const signupTab = document.getElementById('signupTab');
+    const submitBtn = document.getElementById('submitBtn');
+    const message = document.getElementById('message');
+    let mode = 'login';
+
+    function showMessage(text, kind='error') {
+      message.textContent = text;
+      message.className = 'msg show ' + kind;
+    }
+    function setMode(next) {
+      mode = next;
+      loginTab.classList.toggle('active', mode === 'login');
+      signupTab.classList.toggle('active', mode === 'signup');
+      submitBtn.textContent = mode === 'login' ? 'লগইন করুন' : 'অ্যাকাউন্ট তৈরি করুন';
+      document.getElementById('password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+      message.className = 'msg';
+    }
+    loginTab.addEventListener('click', () => setMode('login'));
+    signupTab.addEventListener('click', () => setMode('signup'));
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (password.length < 6) {
+        showMessage('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');
+        return;
+      }
+      if (SUPABASE_URL.includes('PASTE_YOUR_') || SUPABASE_ANON_KEY.includes('PASTE_YOUR_')) {
+        showMessage('লগইন চালু করার জন্য আগে এই সাইটের সঠিক Supabase Project URL ও publishable/anon key বসাতে হবে। এখনো কোনো অ্যাকাউন্টে লগইন করা হবে না।');
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'অপেক্ষা করুন…';
+      try {
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const result = mode === 'login'
+          ? await supabase.auth.signInWithPassword({ email, password })
+          : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + '/login.html' } });
+        if (result.error) throw result.error;
+        if (mode === 'signup' && !result.data.session) {
+          showMessage('অ্যাকাউন্টের অনুরোধ হয়েছে। ইমেইলে ভেরিফিকেশন লিংক এলে সেটি খুলুন।', 'ok');
+        } else {
+          showMessage('লগইন সফল হয়েছে। তবে অ্যাডমিন অনুমতি বা অ্যাডমিন প্যানেল এই ফাইল তৈরি করে না।', 'ok');
+          window.location.href = 'index.html';
+        }
+      } catch (error) {
+        showMessage(error?.message || 'লগইন করা যায়নি। Supabase সেটিংস ও ইমেইল/পাসওয়ার্ড পরীক্ষা করুন।');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = mode === 'login' ? 'লগইন করুন' : 'অ্যাকাউন্ট তৈরি করুন';
+      }
+    });
+  </script>
+</body>
+</html>
