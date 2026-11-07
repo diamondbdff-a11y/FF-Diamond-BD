@@ -7,5 +7,18 @@
     "banner-1794029530402-5536.jpg",
     "banner-1794029567073-7562.jpg"
   ],
-  "quick": null
+  "quick": [
+    {
+      "label": "Telegram",
+      "url": "https://@Ronimalik22"
+    },
+    {
+      "label": "Join Group",
+      "url": ""
+    },
+    {
+      "label": "YouTube",
+      "url": ""
+    }
+  ]
 }
