@@ -124,7 +124,7 @@ svg.f{width:1em;height:1em;fill:currentColor;stroke:none}
 header{position:sticky;top:0;z-index:40;background:#ffffff;border-bottom:1px solid var(--bd);padding-top:env(safe-area-inset-top)}
 .hd{display:flex;align-items:center;justify-content:space-between;height:68px}
 .logo{display:inline-flex;align-items:center;height:44px;max-width:145px}
-.logo img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block}
+.logo img{height:100%;width:auto;max-width:100%;object-fit:contain;display:block;transform:scale(1.3);transform-origin:left center}
 .hr{display:flex;align-items:center;gap:12px}
 .wallet{display:flex;align-items:center;gap:8px;height:42px;padding:0 16px 0 12px;border-radius:99px;background:var(--g);color:#fff;font-weight:700;font-size:15px;box-shadow:0 8px 18px -6px rgba(37,99,235,.6)}
 .wallet svg{font-size:19px}
@@ -781,6 +781,128 @@ html,body,.pk,.po,.btn,.pay,.q,.card,.nav a,.pv-back{touch-action:manipulation}
 .ac-mi .go{margin-left:auto;color:#94a3b8;font-size:17px}
 .ac-mi.out{color:#b42318}
 .ac-mi.out .mi{background:#fee4e2;color:#b42318}
+
+/* UID/player-name success result — RGB neon animation copied from FFX style */
+@keyframes uidRgbHue {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+@keyframes uidRgbPulse {
+  0%,100% {
+    box-shadow: 0 0 7px rgba(0,255,255,.42), 0 0 16px rgba(0,255,255,.18),
+      inset 0 0 10px rgba(0,255,255,.05);
+  }
+  33% {
+    box-shadow: 0 0 9px rgba(255,0,220,.55), 0 0 22px rgba(255,0,220,.22),
+      inset 0 0 12px rgba(255,0,220,.06);
+  }
+  66% {
+    box-shadow: 0 0 9px rgba(80,80,255,.55), 0 0 22px rgba(80,80,255,.22),
+      inset 0 0 12px rgba(80,80,255,.06);
+  }
+}
+@keyframes uidNeonFlow {
+  0% { background-position: 0% 50%, 100% 50%; }
+  50% { background-position: 100% 50%, 0% 50%; }
+  100% { background-position: 0% 50%, 100% 50%; }
+}
+.pname.ok {
+  position: relative;
+  border: 2px solid transparent !important;
+  background:
+    linear-gradient(120deg, rgba(0,245,255,.13), rgba(255,255,255,.92), rgba(255,40,210,.13)) padding-box,
+    linear-gradient(110deg, #00f5ff, #8b5cff, #ff32c8, #00f5ff) border-box !important;
+  background-size: 100% 100%, 300% 300% !important;
+  color: #17152e !important;
+  animation: uidRgbPulse 4s ease-in-out infinite, uidRgbHue 12s linear infinite;
+  box-shadow: 0 0 8px #00eaff, 0 0 18px rgba(0,234,255,.65),
+    0 0 32px rgba(195,55,255,.35), inset 0 0 18px rgba(0,220,255,.12) !important;
+}
+.pname.ok svg {
+  color: #fff;
+  background: linear-gradient(135deg, #00d9ff, #7855ff, #ff35c8);
+  border-radius: 50%;
+  padding: 2px;
+  filter: drop-shadow(0 0 5px rgba(0,220,255,.7));
+  animation: uidRgbHue 8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pname.ok, .pname.ok svg { animation: none !important; }
+}
+
+/* Free Fire player info card */
+.pname.player-result{display:block!important;padding:0!important;background:#19172f!important;color:#fff!important;border:1px solid #302b50!important;border-radius:16px!important;overflow:hidden}
+.player-result .pr-main{display:flex;align-items:center;gap:11px;padding:13px}
+.player-result .pr-avatar{width:48px;height:48px;flex:0 0 48px;border-radius:50%;display:grid;place-items:center;background:#343b75;font-size:24px}
+.player-result .pr-info{flex:1;min-width:0}
+.player-result .pr-name{font-size:16px;font-weight:800;overflow-wrap:anywhere;color:#fff}
+.player-result .pr-region{font-size:12px;color:#c5d2ff;margin-top:3px}
+.player-result .pr-stats{font-size:11px;color:#9db4f4;margin-top:5px;line-height:1.5}
+.player-result .pr-check{width:27px;height:27px;flex:0 0 27px;border-radius:50%;display:grid;place-items:center;background:#3269df;color:#fff;font-size:17px;font-weight:800}
+
+/* RGB glowing player card */
+@keyframes rgbHue { 0%{filter:hue-rotate(0deg)} 100%{filter:hue-rotate(360deg)} }
+@keyframes rgbPulse { 0%,100%{box-shadow:0 0 7px rgba(0,255,255,.42),0 0 16px rgba(0,255,255,.18),inset 0 0 10px rgba(0,255,255,.05)} 33%{box-shadow:0 0 9px rgba(255,0,220,.55),0 0 22px rgba(255,0,220,.22),inset 0 0 12px rgba(255,0,220,.06)} 66%{box-shadow:0 0 9px rgba(80,80,255,.55),0 0 22px rgba(80,80,255,.22),inset 0 0 12px rgba(80,80,255,.06)} }
+.pname.player-result{position:relative;border:1.5px solid transparent!important;background:linear-gradient(135deg,#111329,#19172f 55%,#111329) padding-box,linear-gradient(110deg,#00f5ff,#8b5cff,#ff32c8,#00f5ff) border-box!important;background-size:100% 100%,300% 300%!important;animation:rgbPulse 4s ease-in-out infinite,rgbHue 12s linear infinite}
+.player-result .pr-avatar{background:linear-gradient(135deg,#00d9ff,#784dff,#ff35c8);box-shadow:0 0 12px rgba(0,220,255,.55);animation:rgbHue 8s linear infinite}
+.player-result .pr-name{text-shadow:0 0 8px rgba(0,225,255,.55),0 0 14px rgba(190,70,255,.3)}
+.player-result .pr-region{color:#bcecff;text-shadow:0 0 7px rgba(0,220,255,.45)}
+.player-result .pr-stats{color:#d0c8ff}
+.player-result .pr-check{background:linear-gradient(135deg,#00d9ff,#7855ff,#ff35c8);box-shadow:0 0 12px rgba(0,220,255,.6);animation:rgbHue 8s linear infinite}
+/* RGB glow inside the black area of the player box */
+@keyframes innerRgbBg{0%{background-position:0% 50%,100% 50%,50% 50%}50%{background-position:100% 50%,0% 50%,50% 50%}100%{background-position:0% 50%,100% 50%,50% 50%}}
+.player-result .pr-main{background:radial-gradient(ellipse at 8% 50%,rgba(0,225,255,.19),transparent 42%),radial-gradient(ellipse at 92% 50%,rgba(255,35,205,.17),transparent 43%),linear-gradient(120deg,#05060d 0%,#101020 48%,#070711 100%);background-size:220% 220%,220% 220%,100% 100%;animation:innerRgbBg 8s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.pname.player-result,.player-result .pr-avatar,.player-result .pr-check,.player-result .pr-main{animation:none}}
+/* NEON glow effect — remove dark/black card fills */
+@keyframes neonFlow{0%{background-position:0% 50%,100% 50%,0% 50%}50%{background-position:100% 50%,0% 50%,100% 50%}100%{background-position:0% 50%,100% 50%,0% 50%}}
+.pname.player-result{background:linear-gradient(120deg,rgba(0,245,255,.13),rgba(255,255,255,.92),rgba(255,40,210,.13)) padding-box,linear-gradient(110deg,#00f5ff,#8b5cff,#ff32c8,#00f5ff) border-box!important;background-size:100% 100%,300% 300%!important;border:2px solid transparent!important;box-shadow:0 0 8px #00eaff,0 0 18px rgba(0,234,255,.65),0 0 32px rgba(195,55,255,.35),inset 0 0 18px rgba(0,220,255,.12)!important}
+.player-result .pr-main{background:radial-gradient(ellipse at 8% 50%,rgba(0,225,255,.25),transparent 48%),radial-gradient(ellipse at 92% 50%,rgba(255,35,205,.22),transparent 48%),linear-gradient(110deg,rgba(0,245,255,.08),rgba(255,255,255,.78),rgba(255,40,210,.08))!important;background-size:220% 220%,220% 220%,250% 250%!important;animation:neonFlow 7s ease-in-out infinite!important}
+.player-result .pr-name{color:#17152e!important;text-shadow:0 0 2px #fff,0 0 8px rgba(0,225,255,.8),0 0 14px rgba(190,70,255,.55)!important}
+.player-result .pr-region{color:#27345c!important;text-shadow:0 0 7px rgba(0,220,255,.55)!important}
+.player-result .pr-stats{color:#354064!important}
+@media(prefers-reduced-motion:reduce){.player-result .pr-main{animation:none!important}}
+
+
+
+/* Animated neon treatment matching the original FFX result animations */
+@keyframes refNeonFlow{
+  0%{background-position:0% 50%,100% 50%,0% 50%}
+  50%{background-position:100% 50%,0% 50%,100% 50%}
+  100%{background-position:0% 50%,100% 50%,0% 50%}
+}
+@keyframes refRgbHue{
+  0%{filter:hue-rotate(0deg);transform:scale(1)}
+  50%{filter:hue-rotate(150deg);transform:scale(1.035)}
+  100%{filter:hue-rotate(360deg);transform:scale(1)}
+}
+@keyframes refSoftPulse{
+  0%,100%{box-shadow:0 0 8px rgba(0,234,255,.55),0 0 18px rgba(0,234,255,.35),0 0 30px rgba(195,55,255,.22)}
+  50%{box-shadow:0 0 13px rgba(255,45,205,.7),0 0 25px rgba(120,85,255,.55),0 0 38px rgba(0,234,255,.35)}
+}
+.pname.player-result{
+  background:linear-gradient(110deg,rgba(255,255,255,.92),rgba(255,220,239,.96),rgba(255,240,225,.92)) padding-box,
+    linear-gradient(110deg,#00f5ff,#8b5cff,#ff32c8,#00f5ff) border-box!important;
+  background-size:100% 100%,300% 300%!important;
+  animation:refNeonFlow 7s ease-in-out infinite,refSoftPulse 3.8s ease-in-out infinite!important;
+}
+.pname.player-result .pr-main{
+  background:linear-gradient(110deg,rgba(245,150,239,.12),rgba(255,255,255,.10),rgba(255,170,160,.16))!important;
+  background-size:250% 250%!important;
+  animation:refNeonFlow 8s ease-in-out infinite!important;
+}
+.pname.player-result .pr-avatar{
+  animation:refRgbHue 8s linear infinite!important;
+}
+.pname.player-result .pr-check{
+  animation:refRgbHue 8s linear infinite!important;
+}
+@media(prefers-reduced-motion:reduce){
+  .pname.player-result,.pname.player-result .pr-main,
+  .pname.player-result .pr-avatar,.pname.player-result .pr-check{
+    animation:none!important
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2809,6 +2931,28 @@ setInterval(fetchFreshAccountConfig, 15000);
     return (v===''||v==='None'||v==='null'||v==='Unknown'||v==='[]') ? '' : v;
   }
   function pick(){ for(var i=0;i<arguments.length;i++){ var c=clean(arguments[i]); if(c) return c; } return ''; }
+  function showProductPlayer(box,d,uid){
+    var name=pick(d.name,d.player&&d.player.name,d.raw&&d.raw.name);
+    if(!name){ show(box,'err','এই আইডির কোনো প্লেয়ার পাওয়া যায়নি','warn'); return; }
+    var region=pick(d.region_name,d.region,d.player&&d.player.region_name,d.player&&d.player.region,d.raw&&d.raw.region_name,d.raw&&d.raw.region,'Unknown');
+    var flag=pick(d.region_flag,d.player&&d.player.region_flag,d.raw&&d.raw.region_flag,'');
+    var level=pick(d.level,d.player&&d.player.level,d.raw&&d.raw.level,'N/A');
+    var likes=pick(d.likes,d.player&&d.player.likes,d.raw&&d.raw.likes,'N/A');
+    var playerUid=pick(d.uid,d.player&&d.player.uid,d.raw&&d.raw.uid,uid);
+    box.className='pname ok player-result';
+    box.textContent='';
+    var main=document.createElement('div'); main.className='pr-main';
+    var avatar=document.createElement('div'); avatar.className='pr-avatar'; avatar.textContent='🎮';
+    var info=document.createElement('div'); info.className='pr-info';
+    var nm=document.createElement('div'); nm.className='pr-name'; nm.textContent=String(name);
+    var rg=document.createElement('div'); rg.className='pr-region'; rg.textContent=(flag?flag+' ':'')+String(region);
+    var stats=document.createElement('div'); stats.className='pr-stats';
+    var likeText=likes==='N/A'?'N/A':(Number.isFinite(Number(likes))?Number(likes).toLocaleString():String(likes));
+    stats.textContent='UID '+String(playerUid)+' · '+likeText+' Likes · Lv '+String(level);
+    info.appendChild(nm); info.appendChild(rg); info.appendChild(stats);
+    var check=document.createElement('div'); check.className='pr-check'; check.textContent='✓';
+    main.appendChild(avatar); main.appendChild(info); main.appendChild(check); box.appendChild(main);
+  }
   function sigClean(t){ return clean(t).replace(/\[[0-9A-Fa-f]{6,8}\]|\[[A-Za-z]{1,2}\]/g,'').replace(/[\u3164\uFF61\uFF65\uFF9F]/g,'').replace(/\n\s*\n/g,'\n').trim(); }
   function detailBox(box){
     var n=box.nextElementSibling;
@@ -2969,7 +3113,7 @@ setInterval(fetchFreshAccountConfig, 15000);
         .then(function(d){
           if(my!==token) return;
           var name=pickName(d);
-          if(name){ if(ids[0]==='ucChk'){ box.className='pname'; box.textContent=''; renderDetail(d,box); } else show(box,'ok',name,'chk'); }
+          if(name){ if(ids[0]==='ucChk'){ box.className='pname'; box.textContent=''; renderDetail(d,box); } else showProductPlayer(box,d,uid); }
           else { show(box,'err',isUc?NODATA:'এই আইডির কোনো প্লেয়ার পাওয়া যায়নি','warn'); clearDetail(box); }
         })
         .catch(function(){
