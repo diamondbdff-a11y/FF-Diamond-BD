@@ -20,7 +20,9 @@
       "url": "https://www.youtube.com/@Roni.Malik18"
     }
   ],
-  "images": null,
+  "images": {
+    "pop": "img-pop-1794237509107.png"
+  },
   "prod": null,
   "texts": null
 }
