@@ -7,6 +7,10 @@
     "start": "node server.js"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "18.x"
+  },
+  "dependencies": {
+    "mongoose": "^7.6.3"
   }
 }
+
