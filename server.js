@@ -2,6 +2,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
+
 const zlib = require('zlib');
 
 const GH_TOKEN = process.env['FFX-G'] || process.env.FFX_G || '';
@@ -907,6 +909,14 @@ function serveFile(filePath, res, cache) {
     }
   });
 }
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => {
+    console.log("MongoDB Connected Successfully");
+}).catch((err) => {
+    console.log("MongoDB Connection Error: ", err);
+});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
