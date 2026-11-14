@@ -242,6 +242,13 @@ main.sm{max-width:520px;padding:0}
 .g2 .lb{margin-top:0!important}
 .rl-row .ta{min-height:72px;background:#fff}
 .bn-row{background:#f6f9ff}
+
+.xw{display:grid;gap:10px;padding:4px 0 80px}
+.xch{display:flex;gap:8px;overflow-x:auto}.xc{flex:none;height:36px;padding:0 14px;border-radius:18px;border:1.5px solid var(--bd);background:#fff;font-weight:700;color:var(--mu);cursor:pointer}.xc.on{background:var(--v);border-color:var(--v);color:#fff}
+.xr{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:12px;display:grid;gap:6px}
+.xt{display:flex;justify-content:space-between;gap:8px}.xm{color:var(--mu);font-size:13px;word-break:break-word}
+.xi{height:42px}.xb{display:flex;gap:8px}.xb .btn{flex:1}
+.xcode{font-family:ui-monospace,monospace;font-size:13px;width:100%;border:1.5px solid var(--bd);border-radius:12px;padding:10px;min-height:90px;background:#fff;color:var(--tx)}
 </style>
 </head>
 <body>
@@ -368,7 +375,12 @@ async function enter(){
 }
 
 var SECTIONS=[
-  {id:'site',title:'Site Editor',icon:'edit',render:renderSite}
+  {id:'site',title:'Site Editor',icon:'edit',render:renderSite},
+  {id:'orders',title:'Orders',icon:'okc',render:renderOrders},
+  {id:'addmoney',title:'Add Money requests',icon:'plus',render:renderAddMoney},
+  {id:'users',title:'Users & balance',icon:'edit',render:renderUsers},
+  {id:'codes',title:'Redeem codes',icon:'edit',render:renderCodes},
+  {id:'payment',title:'Payment numbers',icon:'edit',render:renderPayment}
 ];
 
 function openMenu(){
@@ -759,11 +771,11 @@ function drawProduct(b,key){
 
   /* 3. Packages & prices */
   if(p.hasGrid){
-    var pk=p.packages.map(function(x){return {label:x.label,name:x.name,price:x.price}});
+    var pk=p.packages.map(function(x){return {label:x.label,name:x.name,price:x.price,hidden:!!x.hidden}});
     var pb=sc(n++,'wal','Packages & prices','These show on the product page');
     var pbody=$('.sc-b',pb);b.appendChild(pb);
     var sync=function(){pbody.querySelectorAll('.pk-row').forEach(function(r,i){
-      pk[i].label=$('[data-f=label]',r).value;pk[i].name=$('[data-f=name]',r).value;pk[i].price=$('[data-f=price]',r).value})};
+      pk[i].label=$('[data-f=label]',r).value;pk[i].name=$('[data-f=name]',r).value;pk[i].price=$('[data-f=price]',r).value;pk[i].hidden=$('[data-f=hidden]',r).checked})};
     var drawPk=function(){
       pbody.innerHTML='<div id="pkRows"></div>'+
         '<button type="button" class="btn ghost block" id="pkAdd">'+ic('plus')+'Add package</button>'+
@@ -778,8 +790,9 @@ function drawProduct(b,key){
             '<button type="button" class="ib del" data-a="del" '+(pk.length<=1?'disabled':'')+' aria-label="Delete">'+ic('trash')+'</button></div></div>'+
           '<label class="lb">Package name</label><input class="inp" data-f="label" placeholder="e.g. 100 Diamond" maxlength="140">'+
           '<div class="g2"><div><label class="lb">Price (BDT)</label><input class="inp" data-f="price" inputmode="decimal" placeholder="85"></div>'+
-          '<div><label class="lb">Order name <span class="opt">(optional)</span></label><input class="inp" data-f="name" placeholder="Same as name" maxlength="100"></div></div>';
-        $('[data-f=label]',r).value=x.label;$('[data-f=price]',r).value=x.price;$('[data-f=name]',r).value=(x.name&&x.name!==x.label)?x.name:'';
+          '<div><label class="lb">Order name <span class="opt">(optional)</span></label><input class="inp" data-f="name" placeholder="Same as name" maxlength="100"></div></div>'+
+          '<label class="lb" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" data-f="hidden"> Hide from website (customers cannot see or buy)</label>';
+        $('[data-f=label]',r).value=x.label;$('[data-f=price]',r).value=x.price;$('[data-f=name]',r).value=(x.name&&x.name!==x.label)?x.name:'';$('[data-f=hidden]',r).checked=!!x.hidden;
         $('[data-a=up]',r).onclick=function(){sync();var t=pk[i];pk[i]=pk[i-1];pk[i-1]=t;drawPk()};
         $('[data-a=down]',r).onclick=function(){sync();var t=pk[i];pk[i]=pk[i+1];pk[i+1]=t;drawPk()};
         $('[data-a=del]',r).onclick=function(){if(confirm('Delete this package?')){sync();pk.splice(i,1);drawPk()}};
@@ -796,7 +809,7 @@ function drawProduct(b,key){
           if(!pk[i].label.trim()){toast('Package '+(i+1)+': name is empty','bad');return}
           if(String(pk[i].price).trim()===''||!isFinite(Number(pk[i].price))||Number(pk[i].price)<0){toast('Package '+(i+1)+': enter a valid price','bad');return}
         }
-        patch({packages:pk.map(function(x){return {label:x.label.trim(),name:String(x.name||'').trim(),price:Number(x.price)}})});
+        patch({packages:pk.map(function(x){return {label:x.label.trim(),name:String(x.name||'').trim(),price:Number(x.price),hidden:!!x.hidden}})});
       };
       var rs=$('#pkRst',pbody);
       if(rs)rs.onclick=function(){if(confirm('Restore the default packages and prices?'))patch({packages:null})};
@@ -843,6 +856,125 @@ function drawProduct(b,key){
     };
     b.appendChild(z);
   }
+}
+
+/* ---- Orders, Add Money, Users, Codes, Payment numbers ---- */
+function box(main){var d=document.createElement('div');d.className='xw';main.appendChild(d);return d}
+function when(t){try{return new Date(t).toLocaleString()}catch(e){return ''}}
+function chips(p,opts,cur,on){var c=document.createElement('div');c.className='xch';opts.forEach(function(o){var b=document.createElement('button');b.type='button';b.className='xc'+(o[0]===cur?' on':'');b.textContent=o[1];b.onclick=function(){on(o[0])};c.appendChild(b)});p.appendChild(c)}
+function card(p,h){var c=document.createElement('div');c.className='xr';c.innerHTML=h;p.appendChild(c);return c}
+function mini(l,cls,fn){var b=document.createElement('button');b.type='button';b.className='btn sm '+(cls||'');b.textContent=l;b.onclick=fn;return b}
+function act(btn,fn){btn.disabled=true;fn().catch(function(e){toast(e.message,'bad');btn.disabled=false})}
+function who(c){c=c||{};return esc(c.name||'')+' · '+esc(c.email||'')}
+
+function renderOrders(main){
+  var st='Pending',w=box(main);
+  async function load(){
+    w.innerHTML='';
+    chips(w,[['Pending','Pending'],['Completed','Done'],['Rejected','Rejected'],['','All']],st,function(v){st=v;load()});
+    var l=card(w,'Loading...');
+    try{
+      var r=await api('/api/admin/orders'+(st?'?status='+st:''));l.remove();
+      if(!r.orders.length)card(w,'<div class="xm">No orders</div>');
+      r.orders.forEach(function(o){
+        var c=card(w,'<div class="xt"><b>'+esc(o.packageName)+'</b><span>BDT '+esc(o.price)+'</span></div>'+
+          '<div class="xm">Player UID: <b>'+esc(o.uid)+'</b></div><div class="xm">'+who(o.customer)+'</div>'+
+          '<div class="xm">'+(o.payMethod==='wallet'?'Paid from wallet':'Instant '+esc(o.via)+' · '+esc(o.senderNumber)+' · TrxID '+esc(o.trxId))+(o.autoVerified?' (auto verified)':'')+'</div>'+
+          '<div class="xm">'+when(o.createdAt)+' · <b>'+esc(o.status)+'</b>'+(o.adminNote?' · '+esc(o.adminNote):'')+'</div>'+(o.deliveredCode?'<div class="xm">Sent to customer: '+esc(o.deliveredCode)+'</div>':''));
+        if(o.status!=='Pending')return;
+        c.insertAdjacentHTML('beforeend','<input class="inp xi" placeholder="Message / code for customer (optional)">');
+        var inp=c.querySelector('input'),bar=document.createElement('div');bar.className='xb';
+        var ok=mini('Deliver','',function(){act(ok,async function(){await api('/api/admin/orders/'+o._id+'/complete',{code:inp.value,note:''});toast('Delivered','ok');load()})});
+        var no=mini('Reject','danger',function(){if(!confirm('Reject this order?'+(o.payMethod==='wallet'?' The wallet money is refunded automatically.':'')))return;act(no,async function(){await api('/api/admin/orders/'+o._id+'/reject',{note:inp.value});toast('Rejected','ok');load()})});
+        bar.appendChild(ok);bar.appendChild(no);c.appendChild(bar);
+      });
+    }catch(e){l.textContent=e.message}
+  }
+  load();
+}
+
+function renderAddMoney(main){
+  var st='pending',w=box(main);
+  async function load(){
+    w.innerHTML='';
+    chips(w,[['pending','Pending'],['approved','Approved'],['rejected','Rejected'],['','All']],st,function(v){st=v;load()});
+    var l=card(w,'Loading...');
+    try{
+      var r=await api('/api/admin/addmoney'+(st?'?status='+st:''));l.remove();
+      if(!r.requests.length)card(w,'<div class="xm">No requests</div>');
+      r.requests.forEach(function(q){
+        var c=card(w,'<div class="xt"><b>BDT '+esc(q.amount)+' · '+esc(q.method)+'</b><span>'+esc(q.status)+'</span></div>'+
+          '<div class="xm">'+who(q.customer)+'</div><div class="xm">Sender '+esc(q.senderNumber)+' · TrxID <b>'+esc(q.trxId)+'</b></div><div class="xm">'+when(q.createdAt)+(q.autoVerified?' · auto verified':'')+'</div>');
+        if(q.status!=='pending')return;
+        var bar=document.createElement('div');bar.className='xb';
+        var ok=mini('Approve','',function(){if(!confirm('Add BDT '+q.amount+' to this wallet?'))return;act(ok,async function(){await api('/api/admin/addmoney/'+q._id+'/approve',{note:''});toast('Approved, money added','ok');load()})});
+        var no=mini('Reject','danger',function(){act(no,async function(){await api('/api/admin/addmoney/'+q._id+'/reject',{note:''});toast('Rejected','ok');load()})});
+        bar.appendChild(ok);bar.appendChild(no);c.appendChild(bar);
+      });
+    }catch(e){l.textContent=e.message}
+  }
+  load();
+}
+
+function renderUsers(main){
+  var w=box(main),t;
+  w.innerHTML='<input class="inp" placeholder="Search name or email">';
+  var inp=w.querySelector('input'),list=document.createElement('div');list.className='xw';w.appendChild(list);
+  async function load(){
+    list.innerHTML='';var l=card(list,'Loading...');
+    try{
+      var r=await api('/api/admin/users?q='+encodeURIComponent(inp.value.trim()));l.remove();
+      card(list,'<div class="xm">'+r.total+' user(s)'+(r.total>r.users.length?', showing newest '+r.users.length+' (use search)':'')+'</div>');
+      r.users.forEach(function(u){
+        var c=card(list,'<div class="xt"><b>'+esc(u.name)+'</b><span>BDT '+esc(u.balance)+'</span></div><div class="xm">'+esc(u.email)+' · joined '+when(u.createdAt)+'</div>');
+        var bar=document.createElement('div');bar.className='xb';
+        function adj(action){
+          var a=prompt((action==='add'?'Add how much (BDT) to ':'Deduct how much (BDT) from ')+u.name+'?');if(!a)return;
+          api('/api/admin/users/'+u.id+'/balance',{amount:a,action:action,note:''}).then(function(r){toast('New balance: BDT '+r.balance,'ok');load()}).catch(function(e){toast(e.message,'bad')});
+        }
+        bar.appendChild(mini('Add balance','',function(){adj('add')}));bar.appendChild(mini('Deduct','danger',function(){adj('subtract')}));c.appendChild(bar);
+      });
+    }catch(e){l.textContent=e.message}
+  }
+  inp.oninput=function(){clearTimeout(t);t=setTimeout(load,350)};
+  load();
+}
+
+function renderCodes(main){
+  var w=box(main);
+  async function load(){
+    w.innerHTML='';
+    var f=card(w,'<b>Create redeem codes</b><input class="inp" id="ca" inputmode="decimal" placeholder="Amount (BDT) for each code"><input class="inp" id="cn" inputmode="numeric" placeholder="How many codes (1-100)" value="1">');
+    var out=document.createElement('textarea');out.className='xcode hidden';out.readOnly=true;
+    var go=mini('Generate','',function(){act(go,async function(){
+      var r=await api('/api/admin/codes',{amount:f.querySelector('#ca').value,count:f.querySelector('#cn').value});
+      toast(r.codes.length+' code(s) created','ok');out.value=r.codes.join('\n');out.classList.remove('hidden');go.disabled=false;
+    })});
+    f.appendChild(go);f.appendChild(out);
+    var l=card(w,'Loading...');
+    try{
+      var r=await api('/api/admin/codes');l.remove();
+      card(w,'<b>Recent codes</b>');
+      r.codes.forEach(function(c){card(w,'<div class="xt"><b style="font-family:ui-monospace,monospace">'+esc(c.code)+'</b><span>BDT '+esc(c.amount)+'</span></div><div class="xm">'+(c.usedBy?'Used '+when(c.usedAt):'Not used yet')+'</div>')});
+    }catch(e){l.textContent=e.message}
+  }
+  load();
+}
+
+function renderPayment(main){
+  var w=box(main);
+  (async function(){
+    try{
+      var r=await api('/api/admin/payment'),p=r.payment||{};
+      var c=card(w,'<b>Payment numbers shown to customers</b><div class="xm">Leave a box empty to hide that method number.</div>'+
+        [['bkash','bKash'],['nagad','Nagad'],['rocket','Rocket']].map(function(m){return '<label class="lb">'+m[1]+'</label><input class="inp" data-k="'+m[0]+'" inputmode="tel" maxlength="20" value="'+esc(p[m[0]]||'')+'">'}).join(''));
+      var sv=mini('Save numbers','',function(){act(sv,async function(){
+        var b={};c.querySelectorAll('input').forEach(function(i){b[i.dataset.k]=i.value});
+        await api('/api/admin/payment',b);toast('Saved, customers see the new numbers','ok');sv.disabled=false;
+      })});
+      c.appendChild(sv);
+    }catch(e){card(w,esc(e.message))}
+  })();
 }
 
 (async function(){
