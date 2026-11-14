@@ -13,6 +13,7 @@ const USE_GH = !!GH_TOKEN;
 
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = __dirname;
+const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 
 const ADMIN_PASSWORD = process.env['FFX-PASS'] || process.env.FFX_PASS || '';
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(ROOT_DIR, 'data'));
@@ -35,6 +36,8 @@ const MIME_TYPES = {
 };
 
 const BLOCKED_NAMES = new Set(['server.js', 'package.json', 'package-lock.json', 'admin.html']);
+// সার্ভারের ভেতরের ফোল্ডার — এগুলোর সোর্স কোড ব্রাউজারে খোলা যাবে না
+const BLOCKED_DIRS = new Set(['node_modules', 'middleware', 'routes', 'services', 'models']);
 
 const DEFAULT_PACKAGES = [
   { label: '200 FF LIKE- প্রতিদিন ১ আইডিতে ১বার', name: '200 FF LIKE', price: 30 },
@@ -583,7 +586,7 @@ function customerFromRequest(req) {
 function setCustomerCookie(res, token) {
   res.setHeader('Set-Cookie', 'ffx_customer=' + encodeURIComponent(token) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800' + (process.env.NODE_ENV === 'production' ? '; Secure' : ''));
 }
-function customerPublic(u) { return { id: u.id, name: u.name, email: u.email }; }
+function customerPublic(u) { return { id: u.id, name: u.name, email: u.email, createdAt: u.createdAt }; }
 function passwordHash(password, salt) {
   return new Promise((resolve, reject) => crypto.scrypt(password, salt, 64, (err, key) => err ? reject(err) : resolve(key.toString('hex'))));
 }
@@ -704,12 +707,30 @@ function customerLoginFailed(key) {
   return item.count;
 }
 
+// Wallet / orders / admin-approval API (MongoDB). Needs env MONGODB_URI; see routes/index.js
+const api = require('./routes')({
+  getCustomer: customerFromRequest,
+  customerById: function (id) { return customers.find(function (u) { return u.id === id; }) || null; },
+  isAdmin: isAuthed,
+  readJson: readJson,
+  sendJson: sendJson,
+  listPackages: function () {
+    const out = [];
+    currentView().products.forEach(function (p) {
+      if (p.hasGrid) p.packages.forEach(function (x) { out.push({ name: x.name, price: x.price }); });
+    });
+    return out;
+  }
+});
+async function withBalance(pub) { pub.balance = await api.balanceOf(pub.id); return pub; }
+
 async function handleApi(req, res, pathname) {
   try {
+    if (await api.handle(req, res, pathname)) return;
 
     if (req.method === 'GET' && pathname === '/api/auth/me') {
       const user = customerFromRequest(req);
-      return sendJson(res, 200, { loggedIn: !!user, user: user ? customerPublic(user) : null });
+      return sendJson(res, 200, { loggedIn: !!user, user: user ? await withBalance(customerPublic(user)) : null });
     }
     if (req.method === 'POST' && pathname === '/api/auth/register') {
       const body = await readJson(req, 8192);
@@ -728,7 +749,7 @@ async function handleApi(req, res, pathname) {
       const token = crypto.randomBytes(32).toString('hex');
       customerSessions.set(token, { userId: user.id, expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
       setCustomerCookie(res, token);
-      return sendJson(res, 201, { loggedIn: true, user: customerPublic(user) });
+      return sendJson(res, 201, { loggedIn: true, user: await withBalance(customerPublic(user)) });
     }
     if (req.method === 'POST' && pathname === '/api/auth/login') {
       const body = await readJson(req, 8192);
@@ -754,7 +775,7 @@ async function handleApi(req, res, pathname) {
       const token = crypto.randomBytes(32).toString('hex');
       customerSessions.set(token, { userId: user.id, expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
       setCustomerCookie(res, token);
-      return sendJson(res, 200, { loggedIn: true, user: customerPublic(user) });
+      return sendJson(res, 200, { loggedIn: true, user: await withBalance(customerPublic(user)) });
     }
     if (req.method === 'POST' && pathname === '/api/auth/logout') {
       const token = customerCookieToken(req);
@@ -979,6 +1000,24 @@ function handle(req, res) {
     return serveFile(path.join(UPLOAD_DIR, name), res, 'public, max-age=31536000, immutable');
   }
 
+  // লগইন পেজ: /login, /login/ ও /login.html সরাসরি login.html খুলবে (হোমপেজে যাবে না)
+  if (pathname === '/login' || pathname === '/login/' || pathname === '/login.html') {
+    return fs.readFile(path.join(ROOT_DIR, 'login.html'), function (err, data) {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('login.html পাওয়া যায়নি');
+      }
+      res.writeHead(200, {
+        'Content-Type': MIME_TYPES['.html'],
+        'Cache-Control': 'no-store',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'no-referrer'
+      });
+      res.end(data);
+    });
+  }
+
   if (pathname === '/' || pathname === '' || pathname === '/index.html' || pathname === '/FFX.html') {
     return sendHome(req, res);
   }
@@ -991,17 +1030,28 @@ function handle(req, res) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('403 Forbidden');
   }
-  if (insideData || BLOCKED_NAMES.has(base) || base.startsWith('.') || rel.split(path.sep).some(function (p) { return p === 'node_modules' || p.startsWith('.'); })) {
+  if (insideData || BLOCKED_NAMES.has(base) || base.startsWith('.') || rel.split(path.sep).some(function (p) { return BLOCKED_DIRS.has(p) || p.startsWith('.'); })) {
     return sendHome(req, res);
   }
 
-  fs.stat(filePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-
+  // আগে public/ ফোল্ডারে খোঁজা হবে (যেমন /js/user-system.js → public/js/user-system.js), তারপর মূল ফোল্ডারে
+  const pubPath = path.normalize(path.join(PUBLIC_DIR, pathname));
+  const candidates = pubPath.startsWith(PUBLIC_DIR + path.sep) ? [pubPath, filePath] : [filePath];
+  (function tryNext(i) {
+    if (i >= candidates.length) {
+      // ফাইল না পেলে: .js/.css/ছবি ইত্যাদির জন্য সঠিক 404 (হোমপেজের HTML নয়), বাকি পাথে হোমপেজ
+      const ext = path.extname(pathname).toLowerCase();
+      if (ext && ext !== '.html') {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('404 Not Found');
+      }
       return sendHome(req, res);
     }
-    serveFile(filePath, res, 'public, max-age=3600');
-  });
+    fs.stat(candidates[i], (err, stats) => {
+      if (err || !stats.isFile()) return tryNext(i + 1);
+      serveFile(candidates[i], res, 'public, max-age=3600');
+    });
+  })(0);
 }
 
 function serveFile(filePath, res, cache) {
