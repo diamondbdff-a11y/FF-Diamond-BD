@@ -2,10 +2,11 @@
 const wallet = require('../services/wallet');
 
 const ID = '([a-f0-9]{24})';
+const UID = '([a-zA-Z0-9-]{8,64})';
 
 async function handle(c) {
-  const { req, res, pathname, method, deps, HttpError, models, crypto } = c;
-  const { Order, AddRequest, Code } = models;
+  const { req, res, pathname, method, deps, HttpError, models, crypto, paymentInfo } = c;
+  const { Order, AddRequest, Code, Wallet, Setting } = models;
   const send = (obj) => deps.sendJson(res, 200, obj);
   const who = (id) => { const u = deps.customerById(id); return u ? { name: u.name, email: u.email } : { name: '', email: '' }; };
   const q = new URL(req.url, 'http://x').searchParams;
@@ -64,7 +65,47 @@ async function handle(c) {
     }
     return send({ ok: true, amount, codes }), true;
   }
+  // ---- users + balance
+  if (method === 'GET' && pathname === '/api/admin/users') {
+    const s = String(q.get('q') || '').trim().toLowerCase();
+    const all = deps.listCustomers().filter((u) => !s || String(u.name || '').toLowerCase().includes(s) || String(u.email || '').toLowerCase().includes(s));
+    const list = all.slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 200);
+    const ws = await Wallet.find({ customerId: { $in: list.map((u) => u.id) } }).lean();
+    const bal = {}; ws.forEach((w) => { bal[w.customerId] = w.balance; });
+    return send({ total: all.length, users: list.map((u) => ({ id: u.id, name: u.name, email: u.email, createdAt: u.createdAt, balance: bal[u.id] || 0 })) }), true;
+  }
+  if (method === 'POST' && (m = pathname.match(new RegExp('^/api/admin/users/' + UID + '/balance$')))) {
+    const u = deps.customerById(m[1]);
+    if (!u) throw new HttpError(404, 'ইউজার পাওয়া যায়নি');
+    const b = await deps.readJson(req, 2048);
+    const amount = Math.round(Number(b.amount) * 100) / 100;
+    if (!Number.isFinite(amount) || amount < 1 || amount > 1000000) throw new HttpError(400, 'সঠিক পরিমাণ দিন');
+    const note = String(b.note || '').trim().slice(0, 100);
+    const tag = note ? ' (' + note + ')' : '';
+    if (b.action === 'subtract') {
+      const w = await wallet.debit(u.id, amount, 'Admin: balance deducted' + tag, 'admin');
+      if (!w) throw new HttpError(400, 'ইউজারের ব্যালেন্স এত নেই');
+      return send({ ok: true, balance: w.balance }), true;
+    }
+    const w = await wallet.credit(u.id, amount, 'Admin: balance added' + tag, 'admin');
+    return send({ ok: true, balance: w.balance }), true;
+  }
+
+  // ---- payment numbers
+  if (method === 'GET' && pathname === '/api/admin/payment') {
+    return send({ payment: await paymentInfo() }), true;
+  }
+  if (method === 'POST' && pathname === '/api/admin/payment') {
+    const b = await deps.readJson(req, 2048);
+    const val = {};
+    ['bkash', 'nagad', 'rocket'].forEach((k) => {
+      const v = String(b[k] == null ? '' : b[k]).trim();
+      if (!/^[0-9+\-\s]{0,20}$/.test(v)) throw new HttpError(400, k + ': নম্বর ঠিক নেই');
+      val[k] = v;
+    });
+    await Setting.findOneAndUpdate({ key: 'payment' }, { value: val }, { upsert: true });
+    return send({ ok: true, payment: await paymentInfo() }), true;
+  }
   return false;
 }
 module.exports = { handle };
-        
