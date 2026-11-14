@@ -2154,8 +2154,7 @@ setInterval(fetchFreshAccountConfig, 15000);
     var uid=document.getElementById('uid').value.trim();
     if(!sel.name){toast('আগে একটি রিচার্জ প্যাকেজ সিলেক্ট করুন');return;}
     if(uid.length<6){toast('সঠিক প্লেয়ার আইডি দিন');document.getElementById('uid').focus();return;}
-    // TODO: অর্ডার সাবমিট লজিক এখানে বসান
-    toast('অর্ডার সাবমিট হচ্ছে... ('+sel.name+', '+sel.price+' টাকা, '+sel.pay+')');
+    if(window.FFXOrder){window.FFXOrder.start({name:sel.name,price:sel.price,uid:uid,pay:sel.pay});}else{toast('পেজটি রিফ্রেশ করে আবার চেষ্টা করুন');}
   });
   upd();
 })();
@@ -2238,8 +2237,7 @@ setInterval(fetchFreshAccountConfig, 15000);
     var uid=inp.value.trim();
     if(!sel.name){toast('আগে একটি রিচার্জ প্যাকেজ সিলেক্ট করুন');return;}
     if(uid.length<6){toast('সঠিক প্লেয়ার আইডি দিন');inp.focus();return;}
-    // TODO: অর্ডার সাবমিট লজিক এখানে বসান
-    toast('অর্ডার সাবমিট হচ্ছে... ('+sel.name+', '+sel.price+' টাকা, '+sel.pay+')');
+    if(window.FFXOrder){window.FFXOrder.start({name:sel.name,price:sel.price,uid:uid,pay:sel.pay});}else{toast('পেজটি রিফ্রেশ করে আবার চেষ্টা করুন');}
   });
   upd();
 })();
@@ -2321,8 +2319,7 @@ setInterval(fetchFreshAccountConfig, 15000);
     var uid=inp.value.trim();
     if(!sel.name){toast('আগে একটি রিচার্জ প্যাকেজ সিলেক্ট করুন');return;}
     if(uid.length<6){toast('সঠিক প্লেয়ার আইডি দিন');inp.focus();return;}
-    // TODO: অর্ডার সাবমিট লজিক এখানে বসান
-    toast('অর্ডার সাবমিট হচ্ছে... ('+sel.name+', '+sel.price+' টাকা, '+sel.pay+')');
+    if(window.FFXOrder){window.FFXOrder.start({name:sel.name,price:sel.price,uid:uid,pay:sel.pay});}else{toast('পেজটি রিফ্রেশ করে আবার চেষ্টা করুন');}
   });
   upd();
 })();
@@ -2404,8 +2401,7 @@ setInterval(fetchFreshAccountConfig, 15000);
     var uid=inp.value.trim();
     if(!sel.name){toast('আগে একটি রিচার্জ প্যাকেজ সিলেক্ট করুন');return;}
     if(uid.length<6){toast('সঠিক প্লেয়ার আইডি দিন');inp.focus();return;}
-    // TODO: অর্ডার সাবমিট লজিক এখানে বসান
-    toast('অর্ডার সাবমিট হচ্ছে... ('+sel.name+', '+sel.price+' টাকা, '+sel.pay+')');
+    if(window.FFXOrder){window.FFXOrder.start({name:sel.name,price:sel.price,uid:uid,pay:sel.pay});}else{toast('পেজটি রিফ্রেশ করে আবার চেষ্টা করুন');}
   });
   upd();
 })();
@@ -2487,8 +2483,7 @@ setInterval(fetchFreshAccountConfig, 15000);
     var uid=inp.value.trim();
     if(!sel.name){toast('আগে একটি রিচার্জ প্যাকেজ সিলেক্ট করুন');return;}
     if(uid.length<6){toast('সঠিক প্লেয়ার আইডি দিন');inp.focus();return;}
-    // TODO: অর্ডার সাবমিট লজিক এখানে বসান
-    toast('অর্ডার সাবমিট হচ্ছে... ('+sel.name+', '+sel.price+' টাকা, '+sel.pay+')');
+    if(window.FFXOrder){window.FFXOrder.start({name:sel.name,price:sel.price,uid:uid,pay:sel.pay});}else{toast('পেজটি রিফ্রেশ করে আবার চেষ্টা করুন');}
   });
   upd();
 })();
@@ -2570,8 +2565,7 @@ setInterval(fetchFreshAccountConfig, 15000);
     var uid=inp.value.trim();
     if(!sel.name){toast('আগে একটি রিচার্জ প্যাকেজ সিলেক্ট করুন');return;}
     if(uid.length<6){toast('সঠিক প্লেয়ার আইডি দিন');inp.focus();return;}
-    // TODO: অর্ডার সাবমিট লজিক এখানে বসান
-    toast('অর্ডার সাবমিট হচ্ছে... ('+sel.name+', '+sel.price+' টাকা, '+sel.pay+')');
+    if(window.FFXOrder){window.FFXOrder.start({name:sel.name,price:sel.price,uid:uid,pay:sel.pay});}else{toast('পেজটি রিফ্রেশ করে আবার চেষ্টা করুন');}
   });
   upd();
 })();
@@ -3149,11 +3143,12 @@ setInterval(fetchFreshAccountConfig, 15000);
     window.FFX_AUTH={loggedIn:!!data.loggedIn,user:data.user||null};
     if(window.FFX_SYNC_AUTH_UI)window.FFX_SYNC_AUTH_UI();
   }).catch(function(){window.FFX_AUTH={loggedIn:false,user:null};if(window.FFX_SYNC_AUTH_UI)window.FFX_SYNC_AUTH_UI();});
-  document.querySelectorAll('.btn.login').forEach(function(a){a.href='#auth';a.addEventListener('click',function(){mode(false);show();});});
+  document.querySelectorAll('.btn.login').forEach(function(a){a.href='#auth';a.addEventListener('click',function(){if(window.FFX_AUTH&&window.FFX_AUTH.loggedIn)return;mode(false);show();});});
   if(location.hash==='#auth'){show();mode(false);}
   window.FFX_SYNC_AUTH_UI();
 })();
 </script>
 
+<script src="/js/checkout.js"></script>
 </body>
 </html>
