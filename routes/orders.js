@@ -3,6 +3,7 @@ const wallet = require('../services/wallet');
 const { resolvePackage } = require('../services/pricing');
 const { verifyTrx } = require('../services/paymentVerify');
 const { publicUser } = require('../middleware/auth');
+const { notifyOrder } = require('../services/telegram');
 
 const METHODS = ['bkash', 'nagad', 'rocket'];
 
@@ -37,6 +38,7 @@ async function handle(c) {
       }
       order.paid = true;
       await order.save();
+      notifyOrder(order, user);
       deps.sendJson(res, 200, { ok: true, order, user: publicUser(user, w.balance) });
       return true;
     }
@@ -52,6 +54,7 @@ async function handle(c) {
       let autoVerified = false;
       try { autoVerified = !!(await verifyTrx({ trxId, amount: pkg.price, method: via, senderNumber })); } catch (e) { console.error('verifyTrx', e.message); }
       const order = await Order.create(Object.assign({}, base, { via, senderNumber, trxId, autoVerified, paid: autoVerified }));
+      notifyOrder(order, user);
       deps.sendJson(res, 200, { ok: true, order });
     } catch (e) { await wallet.releaseTrx(trxId).catch(() => {}); throw e; }
     return true;
