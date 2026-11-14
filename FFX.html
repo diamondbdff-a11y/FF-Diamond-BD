@@ -3158,7 +3158,7 @@ setInterval(fetchFreshAccountConfig, 15000);
   if (window.FFXOrder) return;
 
   var NAMES = { bkash: 'বিকাশ (bKash)', nagad: 'নগদ (Nagad)', rocket: 'রকেট (Rocket)' };
-  var payInfo = null;
+  var payInfo = null, payErr = '';
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function taka(n) { return (Number(n) || 0).toLocaleString('en-US') + '৳'; }
@@ -3188,7 +3188,10 @@ setInterval(fetchFreshAccountConfig, 15000);
     '.fo-muted{color:#8f98a8;font-size:12px}',
     '.fo-methods{display:flex;gap:6px;margin:10px 0 4px}',
     '.fo-methods button{flex:1;padding:10px 4px;border-radius:10px;border:1px solid #29303c;background:#0d1016;color:#eef1f6;font-weight:700;cursor:pointer;font-size:13px}',
-    '.fo-methods button.on{border-color:#28d7a0;color:#28d7a0}',
+    '.fo-methods button.on{border-color:#28d7a0;box-shadow:0 0 0 2px rgba(40,215,160,.35)}',
+    '.fo-methods button{display:flex;align-items:center;justify-content:center;height:54px;padding:6px;background:#fff}',
+    '.fo-lg{max-height:38px;max-width:100%;object-fit:contain}',
+    '.fo-badge{padding:6px 10px;border-radius:8px;color:#fff;font-weight:800;font-size:13px}',
     '.fo-box label{display:block;margin-top:10px;font-size:12px;color:#9aa3b2}',
     '.fo-box input{width:100%;box-sizing:border-box;margin-top:4px;padding:11px 12px;background:#0d1016;border:1px solid #29303c;border-radius:10px;color:#fff;font-size:15px;outline:none}',
     '.fo-box input:focus{border-color:#28d7a0}',
@@ -3232,12 +3235,25 @@ setInterval(fetchFreshAccountConfig, 15000);
 
   function loadPayInfo() {
     if (payInfo) return Promise.resolve(payInfo);
-    return api('/wallet/payment-info').then(function (d) { payInfo = d; return d; }).catch(function () { payInfo = {}; return payInfo; });
+    return api('/wallet/payment-info').then(function (d) { payInfo = d; payErr = ''; return d; }).catch(function (ex) { payErr = ex.message || 'error'; return {}; });
+  }
+
+  // bKash / Nagad / Rocket logo: /bkash.png, /nagad.png, /rocket.png (jpg/jpeg/webp-ও চলবে) — না থাকলে রঙিন নামের ব্যাজ দেখাবে
+  var BRAND = { bkash: ['#E2136E', 'bKash'], nagad: ['#F7941D', 'নগদ'], rocket: ['#8C3494', 'Rocket'] };
+  window.FFXLogo = function (img) {
+    var ext = ['jpg', 'jpeg', 'webp'], t = +img.getAttribute('data-t');
+    if (t < ext.length) { img.setAttribute('data-t', t + 1); img.src = '/' + img.getAttribute('data-k') + '.' + ext[t]; }
+    else { img.style.display = 'none'; img.nextElementSibling.style.display = 'inline-block'; }
+  };
+  function logo(k) {
+    var b = BRAND[k];
+    return '<img class="fo-lg" src="/' + k + '.png" alt="' + b[1] + '" data-k="' + k + '" data-t="0" onerror="FFXLogo(this)">' +
+      '<span class="fo-badge" style="display:none;background:' + b[0] + '">' + b[1] + '</span>';
   }
 
   function payFields(fixedAmount) {
     return '<div class="fo-methods">' + ['bkash', 'nagad', 'rocket'].map(function (k, i) {
-      return '<button type="button" data-m="' + k + '" class="' + (i ? '' : 'on') + '">' + NAMES[k] + '</button>';
+      return '<button type="button" data-m="' + k + '" class="' + (i ? '' : 'on') + '" title="' + NAMES[k] + '">' + logo(k) + '</button>';
     }).join('') + '</div>' +
       '<div class="fo-card">এই নম্বরে Send Money করুন: <b id="foNum">—</b><button type="button" class="fo-copy" id="foCopy">Copy</button></div>' +
       (fixedAmount
@@ -3248,7 +3264,7 @@ setInterval(fetchFreshAccountConfig, 15000);
   }
   function wirePay(m) {
     var method = 'bkash';
-    function showNum() { q(m, '#foNum').textContent = (payInfo && payInfo[method]) || 'সেট করা নেই (অ্যাডমিনকে জানান)'; }
+    function showNum() { var n = payInfo && payInfo[method]; q(m, '#foNum').textContent = n ? n : (payErr ? 'নম্বর লোড হয়নি: ' + payErr : 'সেট করা নেই (অ্যাডমিনকে জানান)'); }
     m.querySelectorAll('.fo-methods button').forEach(function (b) {
       b.onclick = function () {
         method = b.getAttribute('data-m');
