@@ -2,8 +2,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const mongoose = require('mongoose');
-
 const zlib = require('zlib');
 
 const GH_TOKEN = process.env['FFX-G'] || process.env.FFX_G || '';
@@ -548,6 +546,47 @@ function checkToken(t) {
   if (Number(parts[0]) < Date.now()) return false;
   return safeEq(parts[1], sign(parts[0]));
 }
+
+// Customer accounts (stored in DATA_DIR; DATA_DIR must be persistent on the host).
+const CUSTOMER_FILE = path.join(DATA_DIR, 'customers.json');
+const customerSessions = new Map();
+function loadCustomers() {
+  try {
+    const data = JSON.parse(fs.readFileSync(CUSTOMER_FILE, 'utf8'));
+    return Array.isArray(data) ? data : [];
+  } catch (_) { return []; }
+}
+let customers = loadCustomers();
+function saveCustomers() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = CUSTOMER_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(customers, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, CUSTOMER_FILE);
+}
+function customerCookieToken(req) {
+  const cookies = String(req.headers.cookie || '').split(';');
+  for (const item of cookies) {
+    const p = item.trim().split('=');
+    if (p[0] === 'ffx_customer') return decodeURIComponent(p.slice(1).join('='));
+  }
+  return '';
+}
+function customerFromRequest(req) {
+  const token = customerCookieToken(req);
+  const session = customerSessions.get(token);
+  if (!session || session.expires < Date.now()) {
+    if (token) customerSessions.delete(token);
+    return null;
+  }
+  return customers.find(u => u.id === session.userId) || null;
+}
+function setCustomerCookie(res, token) {
+  res.setHeader('Set-Cookie', 'ffx_customer=' + encodeURIComponent(token) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800' + (process.env.NODE_ENV === 'production' ? '; Secure' : ''));
+}
+function customerPublic(u) { return { id: u.id, name: u.name, email: u.email }; }
+function passwordHash(password, salt) {
+  return new Promise((resolve, reject) => crypto.scrypt(password, salt, 64, (err, key) => err ? reject(err) : resolve(key.toString('hex'))));
+}
 function isAuthed(req) {
   const h = req.headers['authorization'] || '';
   return checkToken(h.startsWith('Bearer ') ? h.slice(7).trim() : '');
@@ -648,6 +687,51 @@ function removeUpload(name) {
 
 async function handleApi(req, res, pathname) {
   try {
+
+    if (req.method === 'GET' && pathname === '/api/auth/me') {
+      const user = customerFromRequest(req);
+      return sendJson(res, 200, { loggedIn: !!user, user: user ? customerPublic(user) : null });
+    }
+    if (req.method === 'POST' && pathname === '/api/auth/register') {
+      const body = await readJson(req, 8192);
+      const name = String(body.name || '').trim().slice(0, 60);
+      const email = String(body.email || '').trim().toLowerCase().slice(0, 160);
+      const password = String(body.password || '');
+      if (name.length < 2) return sendJson(res, 400, { error: 'নাম কমপক্ষে ২ অক্ষরের হতে হবে' });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJson(res, 400, { error: 'সঠিক ইমেইল দিন' });
+      if (password.length < 8 || password.length > 128) return sendJson(res, 400, { error: 'পাসওয়ার্ড ৮–১২৮ অক্ষরের হতে হবে' });
+      if (customers.some(u => u.email === email)) return sendJson(res, 409, { error: 'এই ইমেইলে অ্যাকাউন্ট আগে থেকেই আছে। Login করুন।' });
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = await passwordHash(password, salt);
+      const user = { id: crypto.randomUUID(), name, email, salt, passwordHash: hash, createdAt: new Date().toISOString() };
+      customers.push(user);
+      saveCustomers();
+      const token = crypto.randomBytes(32).toString('hex');
+      customerSessions.set(token, { userId: user.id, expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+      setCustomerCookie(res, token);
+      return sendJson(res, 201, { loggedIn: true, user: customerPublic(user) });
+    }
+    if (req.method === 'POST' && pathname === '/api/auth/login') {
+      const body = await readJson(req, 8192);
+      const email = String(body.email || '').trim().toLowerCase();
+      const password = String(body.password || '');
+      const user = customers.find(u => u.email === email);
+      const candidate = user ? await passwordHash(password, user.salt) : await passwordHash(password || 'invalid-password', 'ffx-fixed-dummy-salt');
+      if (!user || !safeEq(candidate, user.passwordHash)) {
+        return sendJson(res, 401, { error: 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়' });
+      }
+      const token = crypto.randomBytes(32).toString('hex');
+      customerSessions.set(token, { userId: user.id, expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+      setCustomerCookie(res, token);
+      return sendJson(res, 200, { loggedIn: true, user: customerPublic(user) });
+    }
+    if (req.method === 'POST' && pathname === '/api/auth/logout') {
+      const token = customerCookieToken(req);
+      if (token) customerSessions.delete(token);
+      res.setHeader('Set-Cookie', 'ffx_customer=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + (process.env.NODE_ENV === 'production' ? '; Secure' : ''));
+      return sendJson(res, 200, { loggedIn: false });
+    }
+
     if (req.method === 'POST' && pathname === '/api/admin/login') {
       if (!ADMIN_PASSWORD) return sendJson(res, 503, { error: 'Render এ FFX-PASS সেট করা নেই। Environment এ FFX-PASS যোগ করে আবার Deploy করুন।' });
       const ip = clientIp(req);
@@ -909,14 +993,6 @@ function serveFile(filePath, res, cache) {
     }
   });
 }
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log("MongoDB Connected Successfully");
-}).catch((err) => {
-    console.log("MongoDB Connection Error: ", err);
-});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
