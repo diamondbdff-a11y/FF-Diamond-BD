@@ -28,11 +28,11 @@ module.exports = function createApi(deps) {
   }
   setInterval(() => { const now = Date.now(); hits.forEach((v, k) => { if (now - v.first > 15 * 60 * 1000) hits.delete(k); }); }, 5 * 60 * 1000).unref();
 
-  const ctxBase = { deps, HttpError, limit, crypto, M: () => M };
+  const ctxBase = { deps, HttpError, limit, crypto, M: () => M, paymentInfo };
 
   async function handle(req, res, pathname) {
     const isUser = pathname === '/api/orders' || pathname.startsWith('/api/orders/') || pathname.startsWith('/api/wallet/');
-    const isAdminR = pathname.startsWith('/api/admin/orders') || pathname.startsWith('/api/admin/addmoney') || pathname.startsWith('/api/admin/codes');
+    const isAdminR = pathname.startsWith('/api/admin/orders') || pathname.startsWith('/api/admin/addmoney') || pathname.startsWith('/api/admin/codes') || pathname.startsWith('/api/admin/users') || pathname.startsWith('/api/admin/payment');
     if (!isUser && !isAdminR) return false;
     try {
       if (isAdminR && !deps.isAdmin(req)) throw new HttpError(401, 'লগইন করুন');
@@ -52,6 +52,20 @@ module.exports = function createApi(deps) {
     return true;
   }
 
+  // Payment numbers: saved from the admin panel (MongoDB); falls back to the old PAY_* settings if never saved.
+  async function paymentInfo() {
+    const env = { bkash: (process.env.PAY_BKASH || '').trim(), nagad: (process.env.PAY_NAGAD || '').trim(), rocket: (process.env.PAY_ROCKET || '').trim() };
+    try {
+      if (!uri) return env;
+      await connect();
+      const d = await M.Setting.findOne({ key: 'payment' }).lean();
+      const v = (d && d.value) || {};
+      const out = {};
+      ['bkash', 'nagad', 'rocket'].forEach((k) => { out[k] = typeof v[k] === 'string' ? v[k] : env[k]; });
+      return out;
+    } catch (_) { return env; }
+  }
+
   async function balanceOf(customerId) {
     try {
       if (!uri) return 0;
@@ -60,7 +74,7 @@ module.exports = function createApi(deps) {
     } catch (_) { return 0; }
   }
 
-  return { handle, balanceOf, HttpError };
+  return { handle, balanceOf, paymentInfo, HttpError };
 };
 module.exports.HttpError = HttpError;
         
