@@ -494,10 +494,12 @@ function applySiteConfig(html) {
 }
 
 const FORGOT_HTML = "\n<!-- FFX: পাসওয়ার্ড ভুলে গেলে ইমেইল OTP দিয়ে রিসেট -->\n<style>\n.ffx-fp-link{width:100%;margin-top:8px;border:0;background:transparent;color:#d32f2f;font-weight:800;padding:8px;font-size:14px;cursor:pointer}\n#ffxFpMsg{min-height:20px;margin:10px 0 0;font-size:13px;font-weight:600}\n#ffxFpMsg.err{color:#c62828}#ffxFpMsg.ok{color:#1b873f}\n</style>\n<div id=\"ffxFpModal\" class=\"ffx-auth-modal\" aria-hidden=\"true\">\n  <div class=\"ffx-auth-card\" role=\"dialog\" aria-modal=\"true\">\n    <button type=\"button\" id=\"ffxFpClose\" class=\"ffx-auth-close\" aria-label=\"Close\">×</button>\n    <h2>পাসওয়ার্ড রিসেট</h2>\n    <p id=\"ffxFpSub\">আপনার ইমেইল দিন, আমরা ৬ সংখ্যার OTP পাঠাবো</p>\n    <form id=\"ffxFpForm\">\n      <label>ইমেইল</label>\n      <input id=\"ffxFpEmail\" type=\"email\" autocomplete=\"email\" placeholder=\"আপনার ইমেইল\" required>\n      <div id=\"ffxFpStep2\" hidden>\n        <label>OTP কোড</label>\n        <input id=\"ffxFpOtp\" inputmode=\"numeric\" maxlength=\"6\" autocomplete=\"one-time-code\" placeholder=\"৬ সংখ্যার কোড\">\n        <label>নতুন পাসওয়ার্ড</label>\n        <input id=\"ffxFpPass\" type=\"password\" autocomplete=\"new-password\" placeholder=\"কমপক্ষে ৮ অক্ষর\">\n      </div>\n      <p id=\"ffxFpMsg\" role=\"alert\"></p>\n      <button id=\"ffxFpSubmit\" type=\"submit\">OTP পাঠান</button>\n    </form>\n    <button type=\"button\" id=\"ffxFpResend\" class=\"ffx-auth-switch\" hidden>আবার OTP পাঠান</button>\n    <button type=\"button\" id=\"ffxFpBack\" class=\"ffx-auth-switch\">← Login-এ ফিরে যান</button>\n  </div>\n</div>\n<script>\n(function () {\n  var login = document.getElementById('ffxAuthModal'), fp = document.getElementById('ffxFpModal');\n  var sw = document.getElementById('ffxAuthSwitch'), title = document.getElementById('ffxAuthTitle');\n  if (!login || !fp || !sw || !title) return;\n  var link = document.createElement('button');\n  link.type = 'button'; link.className = 'ffx-fp-link'; link.textContent = 'পাসওয়ার্ড ভুলে গেছেন? OTP দিয়ে লগইন করুন';\n  sw.parentNode.insertBefore(link, sw);\n  function sync() { link.style.display = /login/i.test(title.textContent) ? 'block' : 'none'; }\n  new MutationObserver(sync).observe(title, { childList: true, characterData: true, subtree: true });\n  sync();\n\n  var form = document.getElementById('ffxFpForm'), emailEl = document.getElementById('ffxFpEmail');\n  var step2 = document.getElementById('ffxFpStep2'), otpEl = document.getElementById('ffxFpOtp'), passEl = document.getElementById('ffxFpPass');\n  var msg = document.getElementById('ffxFpMsg'), submit = document.getElementById('ffxFpSubmit');\n  var resend = document.getElementById('ffxFpResend'), sub = document.getElementById('ffxFpSub');\n  var step = 1, timer = null;\n\n  function say(t, ok) { msg.textContent = t || ''; msg.className = ok ? 'ok' : 'err'; }\n  function digits(v) { return String(v || '').replace(/[০-৯]/g, function (c) { return String('০১২৩৪৫৬৭৮৯'.indexOf(c)); }).replace(/\\D/g, ''); }\n  function setStep(n) {\n    step = n; step2.hidden = n !== 2; emailEl.readOnly = n === 2;\n    submit.textContent = n === 1 ? 'OTP পাঠান' : 'পাসওয়ার্ড বদলান ও Login';\n    sub.textContent = n === 1 ? 'আপনার ইমেইল দিন, আমরা ৬ সংখ্যার OTP পাঠাবো' : 'ইমেইলে আসা OTP আর নতুন পাসওয়ার্ড দিন';\n    resend.hidden = n !== 2;\n  }\n  function cooldown() {\n    var left = 60; resend.disabled = true; clearInterval(timer);\n    timer = setInterval(function () {\n      left--; resend.textContent = left > 0 ? ('আবার OTP পাঠান (' + left + ' সেকেন্ড)') : 'আবার OTP পাঠান';\n      if (left <= 0) { clearInterval(timer); resend.disabled = false; }\n    }, 1000);\n    resend.textContent = 'আবার OTP পাঠান (60 সেকেন্ড)';\n  }\n  function post(url, body) {\n    return fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })\n      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(d.error || 'সমস্যা হয়েছে, আবার চেষ্টা করুন'); return d; }); });\n  }\n  function openFp() {\n    var le = document.getElementById('ffxAuthEmail');\n    emailEl.value = (le && le.value) || emailEl.value; otpEl.value = ''; passEl.value = ''; say('');\n    setStep(1); login.classList.remove('show'); fp.classList.add('show'); fp.setAttribute('aria-hidden', 'false');\n  }\n  function closeFp() { fp.classList.remove('show'); fp.setAttribute('aria-hidden', 'true'); }\n  link.onclick = openFp;\n  document.getElementById('ffxFpClose').onclick = closeFp;\n  document.getElementById('ffxFpBack').onclick = function () { closeFp(); login.classList.add('show'); login.setAttribute('aria-hidden', 'false'); };\n  function sendOtp() {\n    say('OTP পাঠানো হচ্ছে…', true); submit.disabled = true; resend.disabled = true;\n    return post('/api/auth/forgot', { email: emailEl.value.trim() }).then(function () {\n      setStep(2); cooldown(); say('OTP পাঠানো হয়েছে। Inbox না পেলে Spam ফোল্ডার দেখুন।', true); otpEl.focus();\n    }).catch(function (e) { say(e.message); if (step === 2) resend.disabled = false; })\n      .then(function () { submit.disabled = false; });\n  }\n  resend.onclick = sendOtp;\n  form.addEventListener('submit', function (e) {\n    e.preventDefault();\n    if (step === 1) return sendOtp();\n    var otp = digits(otpEl.value), pw = passEl.value;\n    if (otp.length !== 6) return say('৬ সংখ্যার OTP দিন');\n    if (pw.length < 8) return say('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন');\n    submit.disabled = true; say('একটু অপেক্ষা করুন…', true);\n    post('/api/auth/reset', { email: emailEl.value.trim(), otp: otp, password: pw }).then(function (d) {\n      window.FFX_AUTH = { loggedIn: true, user: d.user };\n      closeFp();\n      if (window.FFX_SYNC_AUTH_UI) window.FFX_SYNC_AUTH_UI();\n      location.hash = window.__FFX_RETURN_HASH || '';\n    }).catch(function (er) { say(er.message); }).then(function () { submit.disabled = false; });\n  });\n})();\n</script>\n";
+const EXTRA_HTML = "\n<script>\n(function () {\n  function syncProfile() {\n    var a = window.FFX_AUTH || {}, u = a.user || null;\n    if (typeof window.setProfile === 'function') {\n      window.setProfile(a.loggedIn && u ? { loggedIn: true, name: u.name, email: u.email, balance: Number(u.balance) || 0 } : {});\n    }\n  }\n  var orig = window.FFX_SYNC_AUTH_UI;\n  window.FFX_SYNC_AUTH_UI = function () {\n    if (typeof orig === 'function') orig.apply(this, arguments);\n    try { syncProfile(); } catch (e) {}\n  };\n  window.onRefreshBalance = function () {\n    fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {\n      window.FFX_AUTH = { loggedIn: !!d.loggedIn, user: d.user || null };\n      window.FFX_SYNC_AUTH_UI();\n    }).catch(function () {});\n  };\n  document.addEventListener('click', function (e) {\n    var t = e.target && e.target.closest ? e.target.closest('#acAdd, nav.nav a.add, .acc-it[data-go=\"addmoney\"]') : null;\n    if (!t || !window.FFXOrder || !window.FFXOrder.addMoney) return;\n    e.preventDefault(); e.stopImmediatePropagation();\n    window.FFXOrder.addMoney();\n  }, true);\n  setTimeout(function () { try { syncProfile(); } catch (e) {} }, 600);\n})();\n</script>\n";
 function injectForgot(html) {
   if (html.indexOf('ffxFpModal') !== -1) return html;
+  const add = FORGOT_HTML + EXTRA_HTML;
   const i = html.lastIndexOf('</body>');
-  return i === -1 ? html + FORGOT_HTML : html.slice(0, i) + FORGOT_HTML + html.slice(i);
+  return i === -1 ? html + add : html.slice(0, i) + add + html.slice(i);
 }
 
 function getHomePage(cb) {
@@ -560,7 +562,27 @@ function checkToken(t) {
 
 // Customer accounts (stored in DATA_DIR; DATA_DIR must be persistent on the host).
 const CUSTOMER_FILE = path.join(DATA_DIR, 'customers.json');
-const customerSessions = new Map();
+// লগইন সেশনও MongoDB তে রাখা হয়, যাতে সার্ভার রিস্টার্ট হলেও কাস্টমার লগআউট না হয়।
+class SessionStore {
+  constructor() { this.m = new Map(); this.t = null; }
+  _k(t) { return crypto.createHash('sha256').update(String(t)).digest('hex'); }
+  get(t) { return this.m.get(this._k(t)); }
+  set(t, v) { this.m.set(this._k(t), v); this._save(); return this; }
+  delete(t) { const r = this.m.delete(this._k(t)); if (r) this._save(); return r; }
+  deleteWhere(fn) { let ch = false; this.m.forEach((v, k) => { if (fn(v)) { this.m.delete(k); ch = true; } }); if (ch) this._save(); }
+  load(arr) { const now = Date.now(); arr.forEach((e) => { if (Array.isArray(e) && e[1] && e[1].expires > now) this.m.set(e[0], e[1]); }); }
+  _save() {
+    if (!custColl) return;
+    clearTimeout(this.t);
+    this.t = setTimeout(() => {
+      const now = Date.now(), arr = [];
+      this.m.forEach((v, k) => { if (v.expires > now) arr.push([k, v]); });
+      custColl.updateOne({ _id: 'sessions' }, { $set: { data: arr } }, { upsert: true })
+        .catch((e) => { console.error('Session MongoDB save error:', e && e.message); });
+    }, 300);
+  }
+}
+const customerSessions = new SessionStore();
 function loadCustomers() {
   try {
     const data = JSON.parse(fs.readFileSync(CUSTOMER_FILE, 'utf8'));
@@ -586,6 +608,10 @@ function loadCustomersFromMongo() {
     } else if (customers.length) {
       return custColl.updateOne({ _id: 'customers' }, { $set: { data: customers } }, { upsert: true });
     }
+  }).then(function () {
+    return custColl ? custColl.findOne({ _id: 'sessions' }) : null;
+  }).then(function (sd) {
+    if (sd && Array.isArray(sd.data)) customerSessions.load(sd.data);
   }).catch(function (e) {
     custColl = null;
     console.error('Customer MongoDB load error:', e && e.message);
@@ -796,6 +822,10 @@ async function sendOtpMail(to, otp) {
 
 async function handleApi(req, res, pathname) {
   try {
+    if (req.method === 'GET' && pathname === '/api/wallet/payment-info') {
+      res.setHeader('Cache-Control', 'no-store');
+      return sendJson(res, 200, { bkash: (process.env.PAY_BKASH || '').trim(), nagad: (process.env.PAY_NAGAD || '').trim(), rocket: (process.env.PAY_ROCKET || '').trim() });
+    }
     if (await api.handle(req, res, pathname)) return;
 
     if (req.method === 'GET' && pathname === '/api/auth/me') {
@@ -901,7 +931,7 @@ async function handleApi(req, res, pathname) {
       user.salt = crypto.randomBytes(16).toString('hex');
       user.passwordHash = await passwordHash(password, user.salt);
       saveCustomers();
-      customerSessions.forEach(function (v, k) { if (v.userId === user.id) customerSessions.delete(k); });
+      customerSessions.deleteWhere(function (v) { return v.userId === user.id; });
       Array.from(customerLoginFails.keys()).forEach(function (k) { if (String(k).indexOf(email + '|') === 0) customerLoginFails.delete(k); });
       const token = crypto.randomBytes(32).toString('hex');
       customerSessions.set(token, { userId: user.id, expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
