@@ -3150,14 +3150,17 @@ setInterval(fetchFreshAccountConfig, 15000);
 </script>
 
 <script>
-/* FFX checkout: অর্ডার করুন বাটন চাপলে Wallet Pay (ব্যালেন্স থেকে) অথবা Instant Pay (bKash / Nagad / Rocket + TrxID)। Add Money-ও এখান থেকেই।
- * API: /api/orders, /api/wallet/*  (server.js + MongoDB)
+/* FFX checkout + Add Money (বাংলা) + পুরো সাইটের বাংলা অনুবাদ
+ * API: /api/orders, /api/wallet/*  (server.js + MongoDB) — আগের মতোই, কিছু বদলায়নি
  */
 (function () {
   'use strict';
   if (window.FFXOrder) return;
 
   var NAMES = { bkash: 'বিকাশ (bKash)', nagad: 'নগদ (Nagad)', rocket: 'রকেট (Rocket)' };
+  var SHORT = { bkash: 'bKash', nagad: 'নগদ', rocket: 'Rocket' };
+  var DIAL = { bkash: '*247#', nagad: '*167#', rocket: '*322#' };
+  var COLOR = { bkash: '#E2136E', nagad: '#F7941D', rocket: '#8C3494' };
   var payInfo = null, payErr = '';
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -3181,17 +3184,12 @@ setInterval(fetchFreshAccountConfig, 15000);
   st.textContent = [
     '.fo-ov{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto}',
     '.fo-box{position:relative;width:100%;max-width:420px;max-height:92vh;overflow:auto;background:#14181f;color:#eef1f6;border:1px solid #29303c;border-radius:16px;padding:20px 16px 16px;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}',
+    '.fo-box [hidden]{display:none!important}',
     '.fo-box h3{margin:0 0 10px;font-size:18px}',
     '.fo-x{position:absolute;right:10px;top:6px;background:none;border:0;color:#9aa3b2;font-size:26px;line-height:1;cursor:pointer}',
     '.fo-card{background:#0d1016;border:1px solid #29303c;border-radius:12px;padding:10px 12px;margin:8px 0}',
     '.fo-row{display:flex;justify-content:space-between;gap:10px}',
     '.fo-muted{color:#8f98a8;font-size:12px}',
-    '.fo-methods{display:flex;gap:6px;margin:10px 0 4px}',
-    '.fo-methods button{flex:1;padding:10px 4px;border-radius:10px;border:1px solid #29303c;background:#0d1016;color:#eef1f6;font-weight:700;cursor:pointer;font-size:13px}',
-    '.fo-methods button.on{border-color:#28d7a0;box-shadow:0 0 0 2px rgba(40,215,160,.35)}',
-    '.fo-methods button{display:flex;align-items:center;justify-content:center;height:54px;padding:6px;background:#fff}',
-    '.fo-lg{max-height:38px;max-width:100%;object-fit:contain}',
-    '.fo-badge{padding:6px 10px;border-radius:8px;color:#fff;font-weight:800;font-size:13px}',
     '.fo-box label{display:block;margin-top:10px;font-size:12px;color:#9aa3b2}',
     '.fo-box input{width:100%;box-sizing:border-box;margin-top:4px;padding:11px 12px;background:#0d1016;border:1px solid #29303c;border-radius:10px;color:#fff;font-size:15px;outline:none}',
     '.fo-box input:focus{border-color:#28d7a0}',
@@ -3199,14 +3197,43 @@ setInterval(fetchFreshAccountConfig, 15000);
     '.fo-btn:disabled{opacity:.6;cursor:wait}',
     '.fo-err{color:#ff8b8b;font-size:13px;margin-top:10px;min-height:16px}',
     '.fo-ok{color:#5be39a;font-weight:700}',
-    '.fo-copy{margin-left:6px;background:#262c38;color:#eef1f6;border:0;border-radius:6px;padding:3px 9px;cursor:pointer;font-size:12px}'
+    /* ---- পেমেন্ট পেজ (হালকা থিম) ---- */
+    '.fo-box.fo-light{background:#f3f7ff;color:#1b2a4a;border-color:#dbe5f7}',
+    '.fo-light .fo-x{color:#6b7a99}',
+    '.fo-light h3{color:#1b2a4a}',
+    '.fo-light .fo-card{background:#fff;border-color:#dbe5f7}',
+    '.fo-light .fo-muted{color:#6b7a99}',
+    '.fo-light label{color:#5a6b8c}',
+    '.fo-light input{background:#fff;border:1px solid #cfd9ec;color:#1b2a4a}',
+    '.fo-light input:focus{border-color:#0a52bd}',
+    '.fo-bar{background:#0a52bd;color:#fff;text-align:center;padding:10px;border-radius:8px;margin:12px 0 10px;font-weight:600}',
+    '.fo-methods{display:grid;grid-template-columns:1fr 1fr;gap:10px}',
+    '.fo-methods button{display:flex;align-items:center;justify-content:center;height:64px;padding:6px;background:#fff;border:2px solid #e3e9f5;border-radius:10px;cursor:pointer}',
+    '.fo-methods button.on{border-color:#0a52bd;box-shadow:0 0 0 3px rgba(10,82,189,.18)}',
+    '.fo-lg{max-height:42px;max-width:100%;object-fit:contain}',
+    '.fo-badge{padding:6px 12px;border-radius:8px;color:#fff;font-weight:800;font-size:14px}',
+    '.fo-amtbox{background:#fff;border:1px solid #dbe5f7;border-radius:10px;padding:12px;margin-top:12px;font-size:15px}',
+    '.fo-pay{display:block;width:100%;margin-top:16px;padding:15px;border:0;border-radius:14px;background:#d4e4fb;color:#0a52bd;font-weight:800;font-size:17px;cursor:pointer}',
+    '.fo-pay:disabled{opacity:.55;cursor:not-allowed}',
+    '.fo-back{background:none;border:0;color:#0a52bd;font-weight:700;font-size:14px;cursor:pointer;padding:0 0 8px}',
+    '.fo-pc{border-radius:12px;padding:16px 14px;color:#fff;margin-top:4px}',
+    '.fo-pt{text-align:center;font-weight:800;font-size:17px;margin-bottom:10px}',
+    '.fo-light .fo-pc input{margin-top:0;border:2px solid rgba(255,255,255,.7);color:#1b2a4a;height:46px}',
+    '.fo-steps{list-style:none;margin:12px 0 0;padding:0}',
+    '.fo-steps li{position:relative;padding:11px 0 11px 18px;border-top:1px solid rgba(255,255,255,.22);font-size:14px;line-height:1.55}',
+    '.fo-steps li:first-child{border-top:0}',
+    '.fo-steps li:before{content:"";position:absolute;left:0;top:19px;width:6px;height:6px;border-radius:50%;background:#fff}',
+    '.fo-y{color:#ffe24d;font-weight:800}',
+    '.fo-copy{margin-left:8px;background:rgba(0,0,0,.28);color:#fff;border:0;border-radius:8px;padding:5px 11px;cursor:pointer;font-size:13px;font-weight:700}',
+    '.fo-ver{display:block;width:100%;margin-top:16px;padding:15px;border:0;border-radius:12px;background:#b0001e;color:#fff;font-weight:800;font-size:17px;cursor:pointer}',
+    '.fo-ver:disabled{opacity:.6;cursor:wait}'
   ].join('');
   document.head.appendChild(st);
 
-  function modal(html) {
+  function modal(html, cls) {
     var o = document.createElement('div');
     o.className = 'fo-ov';
-    o.innerHTML = '<div class="fo-box"><button class="fo-x" type="button" aria-label="বন্ধ করুন">×</button>' + html + '</div>';
+    o.innerHTML = '<div class="fo-box' + (cls ? ' ' + cls : '') + '"><button class="fo-x" type="button" aria-label="বন্ধ করুন">×</button>' + html + '</div>';
     o.addEventListener('mousedown', function (e) { if (e.target === o) o.remove(); });
     o.querySelector('.fo-x').onclick = function () { o.remove(); };
     document.body.appendChild(o);
@@ -3239,49 +3266,97 @@ setInterval(fetchFreshAccountConfig, 15000);
   }
 
   // bKash / Nagad / Rocket logo: /bkash.png, /nagad.png, /rocket.png (jpg/jpeg/webp-ও চলবে) — না থাকলে রঙিন নামের ব্যাজ দেখাবে
-  var BRAND = { bkash: ['#E2136E', 'bKash'], nagad: ['#F7941D', 'নগদ'], rocket: ['#8C3494', 'Rocket'] };
   window.FFXLogo = function (img) {
     var ext = ['jpg', 'jpeg', 'webp'], t = +img.getAttribute('data-t');
     if (t < ext.length) { img.setAttribute('data-t', t + 1); img.src = '/' + img.getAttribute('data-k') + '.' + ext[t]; }
     else { img.style.display = 'none'; img.nextElementSibling.style.display = 'inline-block'; }
   };
   function logo(k) {
-    var b = BRAND[k];
-    return '<img class="fo-lg" src="/' + k + '.png" alt="' + b[1] + '" data-k="' + k + '" data-t="0" onerror="FFXLogo(this)">' +
-      '<span class="fo-badge" style="display:none;background:' + b[0] + '">' + b[1] + '</span>';
+    return '<img class="fo-lg" src="/' + k + '.png" alt="' + SHORT[k] + '" data-k="' + k + '" data-t="0" onerror="FFXLogo(this)">' +
+      '<span class="fo-badge" style="display:none;background:' + COLOR[k] + '">' + SHORT[k] + '</span>';
   }
 
-  function payFields(fixedAmount) {
-    return '<div class="fo-methods">' + ['bkash', 'nagad', 'rocket'].map(function (k, i) {
-      return '<button type="button" data-m="' + k + '" class="' + (i ? '' : 'on') + '" title="' + NAMES[k] + '">' + logo(k) + '</button>';
-    }).join('') + '</div>' +
-      '<div class="fo-card">এই নম্বরে Send Money করুন: <b id="foNum">—</b><button type="button" class="fo-copy" id="foCopy">Copy</button></div>' +
-      (fixedAmount
-        ? '<div class="fo-card">পাঠানোর পরিমাণ: <b>' + taka(fixedAmount) + '</b></div>'
-        : '<label>কত টাকা যোগ করবেন (৳)<input id="foAmt" type="number" inputmode="numeric" min="1" placeholder="যেমন: 100"></label>') +
-      '<label>আপনার যে নম্বর থেকে পাঠিয়েছেন<input id="foSender" inputmode="numeric" maxlength="11" placeholder="01XXXXXXXXX"></label>' +
-      '<label>Transaction ID (TrxID)<input id="foTrx" autocapitalize="characters" placeholder="যেমন: 9AB3CD45EF"></label>';
-  }
-  function wirePay(m) {
-    var method = 'bkash';
-    function showNum() { var n = payInfo && payInfo[method]; q(m, '#foNum').textContent = n ? n : (payErr ? 'নম্বর লোড হয়নি: ' + payErr : 'সেট করা নেই (অ্যাডমিনকে জানান)'); }
+  /* ===== নতুন পেমেন্ট ফ্লো: ধাপ ১ = মেথড বাছাই, ধাপ ২ = নির্দেশনা + TrxID + ভেরিফাই =====
+   * o.title, o.top (উপরের HTML), o.fixed (নির্দিষ্ট টাকা, না থাকলে ইউজার লিখবে), o.onSubmit(payload) → Promise
+   */
+  function payModal(o) {
+    var method = 'bkash', amount = o.fixed || 0;
+
+    var m = modal(
+      '<div id="foP1"><h3>' + o.title + '</h3>' + (o.top || '') +
+        '<div class="fo-bar">মোবাইল ব্যাংকিং</div>' +
+        '<div class="fo-methods">' + ['bkash', 'nagad', 'rocket'].map(function (k, i) {
+          return '<button type="button" data-m="' + k + '" class="' + (i ? '' : 'on') + '" title="' + NAMES[k] + '">' + logo(k) + '</button>';
+        }).join('') + '</div>' +
+        (o.fixed
+          ? '<div class="fo-amtbox">টাকার পরিমাণ: <b>' + taka(o.fixed) + '</b></div>'
+          : '<label>কত টাকা যোগ করবেন (৳)<input id="foAmt" type="number" inputmode="numeric" min="1" placeholder="যেমন: 100"></label>') +
+        '<div class="fo-err" id="foE1"></div>' +
+        '<button class="fo-pay" id="foNext" type="button"></button></div>' +
+      '<form id="foP2" hidden novalidate></form>', 'fo-light');
+
+    var p1 = q(m, '#foP1'), p2 = q(m, '#foP2'), next = q(m, '#foNext');
+
+    function label() { next.textContent = 'পে করুন ' + (amount > 0 ? Number(amount).toFixed(2) : ''); next.disabled = !(amount > 0); }
+    label();
+
     m.querySelectorAll('.fo-methods button').forEach(function (b) {
       b.onclick = function () {
         method = b.getAttribute('data-m');
         m.querySelectorAll('.fo-methods button').forEach(function (x) { x.classList.toggle('on', x === b); });
-        showNum();
       };
     });
-    q(m, '#foCopy').onclick = function () {
-      var n = (payInfo && payInfo[method]) || '';
-      if (n && navigator.clipboard) navigator.clipboard.writeText(n);
-      this.textContent = 'Copied';
+    var amtEl = q(m, '#foAmt');
+    if (amtEl) amtEl.oninput = function () { amount = Number(amtEl.value) || 0; q(m, '#foE1').textContent = ''; label(); };
+
+    next.onclick = function () {
+      if (!(amount > 0)) { q(m, '#foE1').textContent = 'সঠিক টাকার পরিমাণ লিখুন'; return; }
+      showStep2();
     };
-    showNum();
-    return function () {
-      var amt = q(m, '#foAmt');
-      return { method: method, senderNumber: q(m, '#foSender').value.trim(), trxId: q(m, '#foTrx').value.trim(), amount: amt ? Number(amt.value) : undefined };
-    };
+
+    function showStep2() {
+      var num = payInfo && payInfo[method];
+      var numTxt = num ? esc(num) : (payErr ? 'নম্বর লোড হয়নি: ' + esc(payErr) : 'সেট করা নেই (অ্যাডমিনকে জানান)');
+      var nm = SHORT[method];
+      p2.innerHTML =
+        '<button type="button" class="fo-back" id="foBack">← ফিরে যান</button>' +
+        '<div class="fo-pc" style="background:' + COLOR[method] + '">' +
+          '<div class="fo-pt">ট্রানজেকশন আইডি দিন</div>' +
+          '<input id="foTrx" autocapitalize="characters" autocomplete="off" placeholder="ট্রানজেকশন আইডি দিন">' +
+          '<ul class="fo-steps">' +
+            '<li>' + DIAL[method] + ' ডায়াল করে আপনার ' + nm + ' মোবাইল মেনুতে যান অথবা ' + nm + ' অ্যাপ খুলুন।</li>' +
+            '<li>Send Money -এ ক্লিক করুন।</li>' +
+            '<li>এই নম্বরে টাকা পাঠান। <b class="fo-y">' + numTxt + '</b>' + (num ? '<button type="button" class="fo-copy" id="foCopy">কপি</button>' : '') + '</li>' +
+            '<li>টাকার পরিমাণঃ <b class="fo-y">' + Number(amount) + '</b></li>' +
+            '<li>নিশ্চিত করে এখন আপনার ' + nm + ' PIN লিখুন।</li>' +
+            '<li>টাকা পাঠান এবং ট্রানজ্যাকশন আইডি কপি করুন।</li>' +
+            '<li>ট্রানজ্যাকশন আইডি লিখে ভেরিফাই চাপুন।</li>' +
+          '</ul>' +
+        '</div>' +
+        '<label>আপনার যে নম্বর থেকে পাঠিয়েছেন<input id="foSender" inputmode="numeric" maxlength="11" placeholder="01XXXXXXXXX"></label>' +
+        '<div class="fo-err" id="foE"></div>' +
+        '<button class="fo-ver" id="foS" type="submit">ভেরিফাই</button>';
+      p1.hidden = true; p2.hidden = false;
+
+      q(m, '#foBack').onclick = function () { p2.hidden = true; p1.hidden = false; };
+      var cp = q(m, '#foCopy');
+      if (cp) cp.onclick = function () {
+        var b = this;
+        function done() { b.textContent = 'কপি হয়েছে'; setTimeout(function () { b.textContent = 'কপি'; }, 1500); }
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(num).then(done, done); else done();
+      };
+      p2.onsubmit = function (e) {
+        e.preventDefault();
+        var btn = q(m, '#foS'), err = q(m, '#foE'); err.textContent = '';
+        var trx = q(m, '#foTrx').value.trim(), sender = q(m, '#foSender').value.trim();
+        if (!trx) { err.textContent = 'ট্রানজেকশন আইডি লিখুন'; return; }
+        if (!/^01\d{9}$/.test(sender)) { err.textContent = 'যে নম্বর থেকে পাঠিয়েছেন সেটি ১১ ডিজিটে লিখুন (01XXXXXXXXX)'; return; }
+        btn.disabled = true; btn.textContent = 'যাচাই হচ্ছে…';
+        o.onSubmit({ method: method, amount: Number(amount), senderNumber: sender, trxId: trx, modal: m })
+          .then(null, function (ex) { err.textContent = ex.message; btn.disabled = false; btn.textContent = 'ভেরিফাই'; });
+      };
+    }
+    return m;
   }
 
   function success(title, lines) {
@@ -3294,20 +3369,18 @@ setInterval(fetchFreshAccountConfig, 15000);
     me().then(function (u) {
       if (!u) return needLogin();
       return loadPayInfo().then(function () {
-        var m = modal('<h3>Add Money</h3>' +
-          '<div class="fo-muted">বর্তমান ব্যালেন্স: <b>' + taka(u.balance) + '</b></div>' +
-          '<form id="foF" novalidate>' + payFields(null) +
-          '<div class="fo-muted" style="margin-top:8px">আগে টাকা Send Money করুন, তারপর TrxID দিয়ে সাবমিট করুন। অ্যাডমিন অ্যাপ্রুভ করলে ব্যালেন্সে টাকা যোগ হবে।</div>' +
-          '<div class="fo-err" id="foE"></div><button class="fo-btn" id="foS" type="submit">অনুরোধ পাঠান</button></form>');
-        var read = wirePay(m);
-        q(m, '#foF').onsubmit = function (e) {
-          e.preventDefault();
-          var btn = q(m, '#foS'), err = q(m, '#foE'); err.textContent = ''; btn.disabled = true;
-          var p = read();
-          api('/wallet/add-money', 'POST', { method: p.method, amount: p.amount, senderNumber: p.senderNumber, trxId: p.trxId, mode: 'manual' })
-            .then(function (r) { m.remove(); success(r.approved ? 'টাকা যোগ হয়েছে' : 'অনুরোধ পাঠানো হয়েছে', [r.message]); return me(); })
-            .catch(function (ex) { err.textContent = ex.message; btn.disabled = false; });
-        };
+        payModal({
+          title: 'টাকা যোগ করুন',
+          top: '<div class="fo-muted">বর্তমান ব্যালেন্স: <b>' + taka(u.balance) + '</b></div>',
+          onSubmit: function (p) {
+            return api('/wallet/add-money', 'POST', { method: p.method, amount: p.amount, senderNumber: p.senderNumber, trxId: p.trxId, mode: 'manual' })
+              .then(function (r) {
+                p.modal.remove();
+                success(r.approved ? 'টাকা যোগ হয়েছে' : 'অনুরোধ পাঠানো হয়েছে', [r.message]);
+                return me();
+              });
+          }
+        });
       });
     }).catch(function (ex) { success('সমস্যা হয়েছে', [ex.message]); });
   }
@@ -3318,7 +3391,7 @@ setInterval(fetchFreshAccountConfig, 15000);
     return api('/orders', 'POST', body).then(function (r) {
       if (m) m.remove();
       if (r.user) setWalletText(r.user.balance || 0);
-      success('অর্ডার সফল হয়েছে ✅', [c.name + ' — ' + taka(c.price), 'Player UID: ' + c.uid, 'স্ট্যাটাস: Pending (অ্যাডমিন চেক করে ডেলিভারি দেবে)']);
+      success('অর্ডার সফল হয়েছে ✅', [c.name + ' — ' + taka(c.price), 'প্লেয়ার UID: ' + c.uid, 'স্ট্যাটাস: পেন্ডিং (অ্যাডমিন চেক করে ডেলিভারি দেবে)']);
     });
   }
 
@@ -3326,16 +3399,16 @@ setInterval(fetchFreshAccountConfig, 15000);
     c = c || {};
     me().then(function (u) {
       if (!u) return needLogin();
-      var summary = '<div class="fo-card"><div class="fo-row"><b>' + esc(c.name) + '</b><b>' + taka(c.price) + '</b></div><div class="fo-muted">Player UID: ' + esc(c.uid) + '</div></div>';
+      var summary = '<div class="fo-card"><div class="fo-row"><b>' + esc(c.name) + '</b><b>' + taka(c.price) + '</b></div><div class="fo-muted">প্লেয়ার UID: ' + esc(c.uid) + '</div></div>';
 
       if (c.pay !== 'Instant Pay') {
         var enough = (u.balance || 0) >= c.price;
-        var m = modal('<h3>Wallet Pay</h3>' + summary +
+        var m = modal('<h3>ওয়ালেট পে</h3>' + summary +
           '<div class="fo-muted">আপনার ওয়ালেট ব্যালেন্স: <b>' + taka(u.balance) + '</b></div>' +
-          (enough ? '' : '<div class="fo-err">ব্যালেন্স যথেষ্ট নেই। আগে Add Money করুন।</div>') +
+          (enough ? '' : '<div class="fo-err">ব্যালেন্স যথেষ্ট নেই। আগে টাকা যোগ করুন।</div>') +
           '<div class="fo-err" id="foE"></div>' +
           (enough ? '<button class="fo-btn" id="foGo" type="button">পেমেন্ট নিশ্চিত করুন</button>'
-                  : '<button class="fo-btn" id="foAdd" type="button">+ Add Money</button>'));
+                  : '<button class="fo-btn" id="foAdd" type="button">+ টাকা যোগ করুন</button>'));
         if (enough) {
           q(m, '#foGo').onclick = function () {
             var b = this; b.disabled = true;
@@ -3348,25 +3421,71 @@ setInterval(fetchFreshAccountConfig, 15000);
       }
 
       return loadPayInfo().then(function () {
-        var m = modal('<h3>Instant Pay</h3>' + summary +
-          '<form id="foF" novalidate>' + payFields(c.price) +
-          '<div class="fo-muted" style="margin-top:8px">ঠিক ' + taka(c.price) + ' Send Money করুন, তারপর TrxID দিন।</div>' +
-          '<div class="fo-err" id="foE"></div><button class="fo-btn" id="foS" type="submit">অর্ডার করুন</button></form>');
-        var read = wirePay(m);
-        q(m, '#foF').onsubmit = function (e) {
-          e.preventDefault();
-          var btn = q(m, '#foS'), err = q(m, '#foE'); err.textContent = ''; btn.disabled = true;
-          var p = read();
-          placeOrder(c, { payMethod: 'instant', via: p.method, senderNumber: p.senderNumber, trxId: p.trxId }, m)
-            .then(null, function (ex) { err.textContent = ex.message; btn.disabled = false; });
-        };
+        payModal({
+          title: 'ইনস্ট্যান্ট পে',
+          top: summary,
+          fixed: c.price,
+          onSubmit: function (p) {
+            return placeOrder(c, { payMethod: 'instant', via: p.method, senderNumber: p.senderNumber, trxId: p.trxId }, p.modal);
+          }
+        });
       });
     }).catch(function (ex) { success('সমস্যা হয়েছে', [ex.message]); });
   }
 
   window.FFXOrder = { start: start, addMoney: addMoney };
-})();
 
+  /* ===== পুরো সাইটের লেখা বাংলায় দেখানো =====
+   * শুধু যা দেখা যায় সেটাই বদলায়। প্যাকেজের নাম, দাম, data-pay ইত্যাদি আগের মতোই থাকে,
+   * তাই অ্যাডমিন প্যানেল ও অর্ডার ঠিকঠাক চলবে।
+   */
+  var BN = {
+    'Support': 'সাপোর্ট', 'Telegram': 'টেলিগ্রাম', 'Group': 'গ্রুপ', 'Channel': 'চ্যানেল', 'Join Group': 'গ্রুপে যোগ দিন', 'YouTube': 'ইউটিউব',
+    'Back': 'ফিরে যান', 'Select Recharge': 'রিচার্জ বেছে নিন', 'Account Info': 'অ্যাকাউন্ট তথ্য', 'Select one option': 'একটি অপশন বেছে নিন',
+    'Wallet Pay': 'ওয়ালেট পে', 'Instant Pay': 'ইনস্ট্যান্ট পে', 'Please Login To Purchase': 'কিনতে হলে আগে লগইন করুন',
+    'Login': 'লগইন', 'Logout': 'লগআউট', 'Create Account': 'অ্যাকাউন্ট তৈরি করুন', 'Buy Now': 'অর্ডার করুন',
+    'Contact Us': 'যোগাযোগ করুন', 'Telegram HelpLine': 'টেলিগ্রাম হেল্পলাইন', 'Rules & Conditions': 'নিয়ম ও শর্তাবলী',
+    'My Orders': 'আমার অর্ডার', 'My Codes': 'আমার কোড', 'My Account': 'আমার অ্যাকাউন্ট', 'My Transaction': 'আমার লেনদেন',
+    'Redeem Code': 'রিডিম কোড', 'No code data found !': 'কোনো কোড পাওয়া যায়নি', 'ORDER NOW': 'এখনই অর্ডার করুন',
+    'Telegram Channel': 'টেলিগ্রাম চ্যানেল', 'Telegram Group': 'টেলিগ্রাম গ্রুপ', 'YouTube Channel': 'ইউটিউব চ্যানেল',
+    'All Transaction': 'সব লেনদেন', 'Number': 'নম্বর', 'Amount': 'পরিমাণ', 'Status': 'স্ট্যাটাস', 'Total:': 'মোট:',
+    'Guest': 'গেস্ট', 'Verified': 'ভেরিফাইড', 'Support PIN': 'সাপোর্ট পিন', 'Wallet Balance': 'ওয়ালেট ব্যালেন্স',
+    'Add Money': 'টাকা যোগ করুন', 'Total Orders': 'মোট অর্ডার', 'Total Codes': 'মোট কোড',
+    'DOWNLOAD OUR MOBILE APP': 'আমাদের মোবাইল অ্যাপ ডাউনলোড করুন', 'GET IT ON': 'ডাউনলোড করুন',
+    'Home': 'হোম', 'CLOSE': 'বন্ধ করুন', '. All rights reserved.': '. সর্বস্বত্ব সংরক্ষিত।'
+  };
+  function trText(s) {
+    var t = s.trim();
+    if (!t) return s;
+    var out = null;
+    if (Object.prototype.hasOwnProperty.call(BN, t)) out = BN[t];
+    else {
+      var h = t.match(/^Hi,\s*(.+)$/);
+      if (h) out = 'হ্যালো, ' + (h[1] === 'Guest' ? 'গেস্ট' : h[1]);
+    }
+    return out == null ? s : s.replace(t, function () { return out; });
+  }
+  function translate(root) {
+    var w = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentNode;
+        if (!p || !p.nodeName) return NodeFilter.FILTER_REJECT;
+        var tag = p.nodeName;
+        return (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var list = [], n;
+    while ((n = w.nextNode())) list.push(n);
+    list.forEach(function (node) {
+      var v = trText(node.nodeValue);
+      if (v !== node.nodeValue) node.nodeValue = v;
+    });
+  }
+  var tmr = null;
+  function schedule() { clearTimeout(tmr); tmr = setTimeout(function () { translate(); }, 60); }
+  translate();
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true, characterData: true });
+})();
 </script>
 </body>
 </html>
