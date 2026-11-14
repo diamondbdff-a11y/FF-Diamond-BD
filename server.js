@@ -685,6 +685,25 @@ function removeUpload(name) {
   if (name && SAFE_FILE.test(name)) fs.unlink(path.join(UPLOAD_DIR, name), function () {});
 }
 
+// Customer login protection: lock an email+IP pair after 4 failed attempts for 15 minutes.
+const customerLoginFails = new Map();
+function customerLoginKey(email, ip) { return String(email || '').toLowerCase() + '|' + String(ip || 'unknown'); }
+function customerLoginLock(key) {
+  const item = customerLoginFails.get(key);
+  if (!item) return 0;
+  const left = LOCK_MS - (Date.now() - item.first);
+  if (left <= 0) { customerLoginFails.delete(key); return 0; }
+  return item.count >= 4 ? left : 0;
+}
+function customerLoginFailed(key) {
+  const now = Date.now();
+  let item = customerLoginFails.get(key);
+  if (!item || now - item.first > LOCK_MS) item = { count: 0, first: now };
+  item.count += 1;
+  customerLoginFails.set(key, item);
+  return item.count;
+}
+
 async function handleApi(req, res, pathname) {
   try {
 
@@ -715,11 +734,23 @@ async function handleApi(req, res, pathname) {
       const body = await readJson(req, 8192);
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
+      const key = customerLoginKey(email, clientIp(req));
+      const wait = customerLoginLock(key);
+      if (wait) return sendJson(res, 429, { error: 'পরপর ৪ বার ভুল পাসওয়ার্ড দেওয়ায় ১৫ মিনিটের জন্য লগইন বন্ধ আছে। Support-এর সঙ্গে যোগাযোগ করুন।', locked: true, retryAfter: Math.ceil(wait / 1000) });
       const user = customers.find(u => u.email === email);
       const candidate = user ? await passwordHash(password, user.salt) : await passwordHash(password || 'invalid-password', 'ffx-fixed-dummy-salt');
       if (!user || !safeEq(candidate, user.passwordHash)) {
-        return sendJson(res, 401, { error: 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়' });
+        const count = customerLoginFailed(key);
+        const locked = count >= 4;
+        return sendJson(res, locked ? 429 : 401, {
+          error: locked
+            ? 'পরপর ৪ বার ভুল পাসওয়ার্ড দেওয়ায় ১৫ মিনিটের জন্য লগইন বন্ধ আছে। Support-এর সঙ্গে যোগাযোগ করুন।'
+            : 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়। ভুলের চেষ্টা ' + count + '/4',
+          locked: locked, attempts: count,
+          retryAfter: locked ? Math.ceil(LOCK_MS / 1000) : 0
+        });
       }
+      customerLoginFails.delete(key);
       const token = crypto.randomBytes(32).toString('hex');
       customerSessions.set(token, { userId: user.id, expires: Date.now() + 7 * 24 * 60 * 60 * 1000 });
       setCustomerCookie(res, token);

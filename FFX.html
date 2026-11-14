@@ -3068,6 +3068,7 @@ setInterval(fetchFreshAccountConfig, 15000);
       <label>পাসওয়ার্ড</label>
       <input id="ffxAuthPassword" type="password" autocomplete="current-password" placeholder="কমপক্ষে ৮ অক্ষর" minlength="8" required>
       <p id="ffxAuthError" role="alert"></p>
+      <a id="ffxAuthSupport" href="#" data-link="telegram-channel" style="display:none;color:#1e63f0;font-weight:800;text-decoration:underline">Support Team-এর সঙ্গে যোগাযোগ করুন</a>
       <button id="ffxAuthSubmit" type="submit">Login</button>
     </form>
     <button type="button" id="ffxAuthSwitch" class="ffx-auth-switch">নতুন অ্যাকাউন্ট খুলুন</button>
@@ -3090,37 +3091,67 @@ setInterval(fetchFreshAccountConfig, 15000);
   var register=false, nameEl=document.getElementById('ffxAuthName'), nameLabel=document.getElementById('ffxNameLabel');
   var title=document.getElementById('ffxAuthTitle'), sub=document.getElementById('ffxAuthSub');
   var submit=document.getElementById('ffxAuthSubmit'), swap=document.getElementById('ffxAuthSwitch'), error=document.getElementById('ffxAuthError');
-  function show(){ modal.classList.add('show'); modal.setAttribute('aria-hidden','false'); error.textContent=''; }
+  var support=document.getElementById('ffxAuthSupport');
+  function show(){ modal.classList.add('show'); modal.setAttribute('aria-hidden','false'); error.textContent=''; if(support)support.style.display='none'; }
   function hide(){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); }
-  function mode(r){ register=r; title.textContent=r?'Create Account':'Login'; sub.textContent=r?'নতুন অ্যাকাউন্ট তৈরি করুন':'আপনার অ্যাকাউন্টে প্রবেশ করুন'; nameEl.hidden=!r; nameLabel.hidden=!r; nameEl.required=r; submit.textContent=r?'Create Account':'Login'; swap.textContent=r?'আগে অ্যাকাউন্ট আছে? Login করুন':'নতুন অ্যাকাউন্ট খুলুন'; document.getElementById('ffxAuthPassword').autocomplete=r?'new-password':'current-password'; error.textContent=''; }
+  function mode(r){ register=r; title.textContent=r?'Create Account':'Login'; sub.textContent=r?'নতুন অ্যাকাউন্ট তৈরি করুন':'আপনার অ্যাকাউন্টে প্রবেশ করুন'; nameEl.hidden=!r; nameLabel.hidden=!r; nameEl.required=r; submit.textContent=r?'Create Account':'Login'; swap.textContent=r?'আগে অ্যাকাউন্ট আছে? Login করুন':'নতুন অ্যাকাউন্ট খুলুন'; document.getElementById('ffxAuthPassword').autocomplete=r?'new-password':'current-password'; error.textContent=''; if(support)support.style.display='none'; }
   window.FFX_AUTH=window.FFX_AUTH||{loggedIn:false,user:null};
+  window.FFX_SYNC_AUTH_UI=function(){
+    var logged=!!(window.FFX_AUTH&&window.FFX_AUTH.loggedIn), user=window.FFX_AUTH&&window.FFX_AUTH.user;
+    var n=document.getElementById('accName'), m=document.getElementById('accMail');
+    var side=document.querySelector('#accLo span'), header=document.getElementById('acLoTx');
+    if(n)n.textContent=logged&&user?'Hi, '+user.name:'Hi, Guest';
+    if(m)m.textContent=logged&&user?user.email:'লগইন করে অর্ডার করুন';
+    if(side)side.textContent=logged?'Logout':'Login';
+    if(header)header.textContent=logged?'Logout':'Login';
+    document.querySelectorAll('.btn.login').forEach(function(a){
+      var warning=a.parentElement&&a.parentElement.querySelector('.warnx');
+      if(logged){a.textContent=(a.id==='buyBtn'?'অর্ডার করুন':'Buy Now');a.href='#';if(warning)warning.style.display='none';}
+      else{a.textContent='Login';a.href='#auth';if(warning)warning.style.display='flex';}
+    });
+  };
   window.addEventListener('hashchange',function(){if(location.hash==='#auth'){show();mode(false);}});
   document.getElementById('ffxAuthClose').onclick=hide;
   modal.addEventListener('click',function(e){if(e.target===modal)hide();});
   swap.onclick=function(){mode(!register);};
-  document.getElementById('accLo').addEventListener('click',function(e){ if(window.FFX_AUTH.loggedIn){e.preventDefault();e.stopImmediatePropagation();fetch('/api/auth/logout',{method:'POST'}).then(function(){location.reload();});}else{e.preventDefault();e.stopImmediatePropagation();mode(false);show();} },true);
+  function logout(e){e.preventDefault();e.stopImmediatePropagation();fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'}).then(function(){location.reload();});}
+  document.getElementById('accLo').addEventListener('click',function(e){
+    if(window.FFX_AUTH.loggedIn)logout(e);
+    else{e.preventDefault();e.stopImmediatePropagation();window.__FFX_RETURN_HASH=location.hash;mode(false);show();}
+  },true);
+  var acLogout=document.getElementById('acLogout');
+  if(acLogout)acLogout.addEventListener('click',function(e){
+    if(window.FFX_AUTH.loggedIn)logout(e);
+    else{e.preventDefault();e.stopImmediatePropagation();window.__FFX_RETURN_HASH=location.hash;mode(false);show();}
+  },true);
+  document.addEventListener('click',function(e){
+    var a=e.target&&e.target.closest?e.target.closest('.btn.login'):null;
+    if(a)window.__FFX_RETURN_HASH=location.hash;
+  },true);
   form.addEventListener('submit',async function(e){
-    e.preventDefault(); submit.disabled=true; error.textContent='একটু অপেক্ষা করুন…';
+    e.preventDefault(); submit.disabled=true; error.textContent='একটু অপেক্ষা করুন…'; if(support)support.style.display='none';
     var payload={email:document.getElementById('ffxAuthEmail').value,password:document.getElementById('ffxAuthPassword').value};
     if(register) payload.name=nameEl.value;
     try{
-      var response=await fetch(register?'/api/auth/register':'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      var response=await fetch(register?'/api/auth/register':'/api/auth/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       var data=await response.json();
-      if(!response.ok) throw new Error(data.error||'লগইন করা যায়নি');
+      if(!response.ok){if(data.locked&&support)support.style.display='inline-block';throw new Error(data.error||'লগইন করা যায়নি');}
       window.FFX_AUTH={loggedIn:true,user:data.user};
-      hide(); location.hash=''; location.reload();
+      hide();
+      var returnHash=window.__FFX_RETURN_HASH||'';
+      if(location.hash!==returnHash)location.hash=returnHash;
+      if(window.FFX_SYNC_AUTH_UI)window.FFX_SYNC_AUTH_UI();
+      // Keep this page alive so the selected package and account details are not lost.
     }catch(err){error.textContent=err.message||'সমস্যা হয়েছে';}
     finally{submit.disabled=false;}
   });
-  fetch('/api/auth/me',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(data){
+  fetch('/api/auth/me',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(data){
     window.FFX_AUTH={loggedIn:!!data.loggedIn,user:data.user||null};
-    if(data.loggedIn){
-      var n=document.getElementById('accName'), m=document.getElementById('accMail'), lo=document.getElementById('acLoTx');
-      if(n)n.textContent='Hi, '+data.user.name;if(m)m.textContent=data.user.email;if(lo)lo.textContent='Logout';
-    }
-  }).catch(function(){});
+    if(window.FFX_SYNC_AUTH_UI)window.FFX_SYNC_AUTH_UI();
+  }).catch(function(){window.FFX_AUTH={loggedIn:false,user:null};if(window.FFX_SYNC_AUTH_UI)window.FFX_SYNC_AUTH_UI();});
   document.querySelectorAll('.btn.login').forEach(function(a){a.href='#auth';a.addEventListener('click',function(){mode(false);show();});});
   if(location.hash==='#auth'){show();mode(false);}
+  window.FFX_SYNC_AUTH_UI();
 })();
 </script>
 
