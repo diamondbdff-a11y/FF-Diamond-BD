@@ -118,7 +118,9 @@ function sanitizePackages(list) {
     if (!label) throw new Error('প্যাকেজ ' + (i + 1) + ': নাম/বিবরণ ফাঁকা');
     if (!Number.isFinite(price) || price < 0 || price > 10000000) throw new Error('প্যাকেজ ' + (i + 1) + ': প্রাইস ঠিক নেই');
     if (!name) name = label;
-    return { label: label, name: name, price: Math.round(price * 100) / 100 };
+    const item = { label: label, name: name, price: Math.round(price * 100) / 100 };
+    if (p && p.hidden) item.hidden = true;
+    return item;
   });
 }
 
@@ -373,7 +375,7 @@ function esc(s) {
 }
 
 function packagesHtml(list) {
-  return list.map(function (p) {
+  return list.filter(function (p) { return !p.hidden; }).map(function (p) {
     return '        <button type="button" class="pk" data-name="' + esc(p.name) + '" data-price="' + esc(p.price) +
       '"><span>' + esc(p.label) + '</span><b>BDT ' + esc(p.price) + '</b></button>';
   }).join('\n');
@@ -774,12 +776,13 @@ const api = require('./routes')({
   getCustomer: customerFromRequest,
   customerById: function (id) { return customers.find(function (u) { return u.id === id; }) || null; },
   isAdmin: isAuthed,
+  listCustomers: function () { return customers; },
   readJson: readJson,
   sendJson: sendJson,
   listPackages: function () {
     const out = [];
     currentView().products.forEach(function (p) {
-      if (p.hasGrid) p.packages.forEach(function (x) { out.push({ name: x.name, price: x.price }); });
+      if (p.hasGrid) p.packages.forEach(function (x) { if (!x.hidden) out.push({ name: x.name, price: x.price }); });
     });
     return out;
   }
@@ -824,7 +827,7 @@ async function handleApi(req, res, pathname) {
   try {
     if (req.method === 'GET' && pathname === '/api/wallet/payment-info') {
       res.setHeader('Cache-Control', 'no-store');
-      return sendJson(res, 200, { bkash: (process.env.PAY_BKASH || '').trim(), nagad: (process.env.PAY_NAGAD || '').trim(), rocket: (process.env.PAY_ROCKET || '').trim() });
+      return sendJson(res, 200, await api.paymentInfo());
     }
     if (await api.handle(req, res, pathname)) return;
 
